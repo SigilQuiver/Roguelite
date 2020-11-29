@@ -475,7 +475,7 @@ while True:
         keys.remove(K_EQUALS)
         
         fullscreen = not fullscreen
-        blitpos,scale = initdisplay(gamesurf,screen,fullscreen,pixelperfect,True)     
+        blitpos,scale = initdisplay(gamesurf,screen,fullscreen,pixelperfect,True)
     #assign direction to triggers(arrow keys in this case)
     keydirections = [K_UP,K_RIGHT,K_DOWN,K_LEFT]
     directions = []

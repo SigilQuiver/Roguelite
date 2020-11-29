@@ -33,7 +33,7 @@ def outline(image):
     return newimage
     
 def getdictfromimage():
-    spritesheet = pygame.image.load("sprites/idle_run_AA.png").convert_alpha()
+    spritesheet = pygame.image.load("sprites/idle_run_jump_AA.png").convert_alpha()
     dims = vector(13,26)
     spritelist = []
     for x in range(int(spritesheet.get_width()//dims[0])):
@@ -56,7 +56,9 @@ def getdictfromimage():
         "walk":[]
         }
     imagedict["idle"] = spritelist[0:4]
-    imagedict["walk"] = spritelist[5:9]
+    imagedict["walk"] = spritelist[4:8]
+    imagedict["jumpup"] = [spritelist[8]]
+    imagedict["jumpdown"] = [spritelist[9]]
     return imagedict
 
 class Player:
@@ -78,7 +80,7 @@ class Player:
         self.velocity = [0.1,0.1]
         self.gravity = GRAVITY
         self.maxy = MAXY
-        self.speed = 2.25   
+        self.speed = 2 
         self.jumpheight = 7
         self.minheight = 1
 
@@ -196,20 +198,24 @@ class Player:
         if self.canjump:
             normaltimer = 12
             if self.velocity[0]==0:
-                self.animtimer.changemax(12)
+                self.animtimer.changemax(normaltimer)
             else:
-                self.animtimer.changemax(normaltimer*2/abs(self.velocity[0]))
+                self.animtimer.changemax(normaltimer/abs(self.velocity[0]))
             if self.velocity[0] != 0:
                 state = "walk"
             else:
                 state = "idle"
-        
+        else:
+            if self.velocity[1] <= 0:
+                state = "jumpup"
+            if self.velocity[1] > 0:
+                state = "jumpdown"
         
         if self.animtimer.update():
             self.animtimer.reset()
             if state != None:
                 self.dictimage[state].append(self.dictimage[state].pop(0))
-
+            
         if state != None:
             image = self.dictimage[state][0]
         else:
