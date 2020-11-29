@@ -55,8 +55,8 @@ def getdictfromimage():
         "idle":[],
         "walk":[]
         }
-    imagedict["idle"] = spritelist[0:3]
-    imagedict["walk"] = spritelist[4:7]
+    imagedict["idle"] = spritelist[0:4]
+    imagedict["walk"] = spritelist[5:9]
     return imagedict
 
 class Player:
@@ -182,10 +182,10 @@ class Player:
         
         if K_a in keys:
             self.direction = "left"
-            self.velocity[0] = lerp(self.velocity[0],-self.speed,-slip)
+            self.velocity[0] = -self.speed#lerp(self.velocity[0],-self.speed,-slip)
         elif K_d in keys:
             self.direction = "right"
-            self.velocity[0] = lerp(self.velocity[0],self.speed,slip)
+            self.velocity[0] = self.speed#lerp(self.velocity[0],self.speed,slip)
         else:
             self.velocity[0] = 0
     #draws the sprite for the player
@@ -198,7 +198,7 @@ class Player:
             if self.velocity[0]==0:
                 self.animtimer.changemax(12)
             else:
-                self.animtimer.changemax(normaltimer/abs(self.velocity[0]))
+                self.animtimer.changemax(normaltimer*2/abs(self.velocity[0]))
             if self.velocity[0] != 0:
                 state = "walk"
             else:

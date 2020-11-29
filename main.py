@@ -186,7 +186,7 @@ class Roomtransition:
         self.slip = 0.2
 
     #used to check if the transition should be started (i.e. if the player moves to a new room)
-    def updatestart(self,surface,triggers,roomdict,tree,currentroom):
+    def updatestart(self,player,surface,triggers,roomdict,tree,currentroom):
         direction = self.gettriggers(triggers)
         nextroom = self.getnextroom(direction,currentroom,tree)
         #start the transition if the player has moved to a new room
@@ -196,7 +196,7 @@ class Roomtransition:
             self.unitmove = vector(self.unitmove)*(screen.get_width()-r.TILESIZE)*-1
             self.currentpos = vector(0,0)
             self.nextpos = self.unitmove
-            self.updatescreen(surface,roomdict,currentroom)
+            self.updatescreen(player,surface,roomdict,currentroom)
             self.betweenroomanimate = True
     #returns the direction that the screen is going to be moved in (based on where the player leaves the screen)
     #nothing is returned if the player is not moving to a new room
@@ -209,20 +209,23 @@ class Roomtransition:
                 return self.directions[keytriggers.index(trigger)]
 
     #updates the surfaces for both rooms
-    def updatescreen(self,surface,roomdict,currentroom):
+    def updatescreen(self,player,surface,roomdict,currentroom):
         surface.fill((0,0,0))
-        self.updatesprites(surface,roomdict,currentroom)
+        self.updatesprites(player,surface,roomdict,currentroom)
         #take a snapshot of the current screen
         self.currentsurface = surface.copy()
 
         #create a new surface and draw all the sprites on it that would normally be drawn directly onto the screen
         self.nextsurface = pygame.Surface(screen.get_size())
-        self.updatesprites(self.nextsurface,roomdict,self.nextroom)
+        self.updatesprites(player,self.nextsurface,roomdict,self.nextroom)
+        
 
     #updates the surface for the next room
-    def updatesprites(self,surface,roomdict,currentroom):
-        roomdict[currentroom].update(surface)
+    def updatesprites(self,player,surface,roomdict,currentroom):
+        roomdict[currentroom].updatedecor(surface)
+        e.entities.update(roomdict[currentroom].tilelist,player,surface)
         player.updatesprite(surface)
+        roomdict[currentroom].update(surface)
 
     #checks that the direction that the transition happens in is possible(if there is a room there)
     #stores the next room that will be moved to if it is possible
@@ -358,14 +361,17 @@ class Minimap:
         
 
 #is used to toggle fullscreen and center the game to the middle of the screen
-def initdisplay(gamesurf,screen,fullscreen=True,pixelperfect=False):
+def initdisplay(gamesurf,screen,fullscreen=True,pixelperfect=False,windowedswitch=False):
     rect = gamesurf.get_rect()
     #changes the screen object to fullscreen based on the fullscreen variable
     if fullscreen:
         screensize = fullscreensize
         screen = pygame.display.set_mode(screensize,pygame.FULLSCREEN)
     else:
-        screensize = screen.get_size()
+        if windowedswitch:
+            screensize = (500,500)
+        else:
+            screensize = screen.get_size()
         screen = pygame.display.set_mode(screensize,pygame.RESIZABLE)
     #enlarges the screen up to 10 times, to find a scale(a multiplier to each pixel) that would work
     for tempscale in range(1,10+1):
@@ -448,7 +454,7 @@ while True:
     for event in pygame.event.get():
         #if there is any change in the window size (e.g. if the windowed screen is maximized)
         if event.type == pygame.VIDEORESIZE:
-            blitpos,scale = initdisplay(gamesurf,screen,fullscreen)                    
+            blitpos,scale = initdisplay(gamesurf,screen,fullscreen,pixelperfect,False)                    
         #if the player presses the exit button on the window, close the window and stop the script        
         if event.type == pygame.QUIT:
             pygame.quit()
@@ -467,11 +473,9 @@ while True:
         
     if K_EQUALS in keys:
         keys.remove(K_EQUALS)
-        fullscreen = not fullscreen
         
-    if fulltemp != fullscreen:
-        print(fullscreen)
-        blitpos,scale = initdisplay(gamesurf,screen,fullscreen)
+        fullscreen = not fullscreen
+        blitpos,scale = initdisplay(gamesurf,screen,fullscreen,pixelperfect,True)     
     #assign direction to triggers(arrow keys in this case)
     keydirections = [K_UP,K_RIGHT,K_DOWN,K_LEFT]
     directions = []
@@ -501,7 +505,7 @@ while True:
         player.updatepos()
 
     #check if transition animation should be started
-    transition.updatestart(gamesurf,directions,roomdict,tree,currentroom)
+    transition.updatestart(player,gamesurf,directions,roomdict,tree,currentroom)
 
     
     #get new map, reset explored list and set current room to spawn
@@ -549,7 +553,7 @@ while True:
         angle = vector(0,0).angle_to(mousepos-playerpos)
         e.entities.add(e.Projectile(playerpos,0,1,(0,0),angle,1))
         
-    #if there is no transition animation, update the player
+    #if there is no transition animation, update sprites normally
     if not transition.intransition():
         roomdict[currentroom].updatedecor(gamesurf)
         e.entities.update(roomdict[currentroom].tilelist,player,gamesurf)
