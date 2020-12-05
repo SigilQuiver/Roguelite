@@ -97,10 +97,49 @@ class Player:
         self.animtimer = Timer(12)
         self.pos = list(self.rect.center)
         self.deltax = 0
+
+        self.shotspeed = 3
+        self.shootspeed = 20
+        self.shoottimer = Timer(self.shootspeed)
+
+        self.maxhp = 6
+        self.hp = 6
+
+        self.invunerable = False
+        self.invuntimer = Timer(200)
+        self.invunflash = False
+        self.invunflashtimer = Timer(15)
+
+        self.hastriedshot = False
+        
+    def damage(self):
+        if not self.invunerable:
+            self.hp -=1
+            self.invunerable = True
+            self.invuntimer.reset()
+    def updateinvun(self):
+        if self.invunerable:
+            if self.invuntimer.update():
+                self.invunerable = False
+            if self.invunflashtimer.update():
+                self.invunflash = not self.invunflash
+        if not self.invunerable:
+            self.invunflash = False
     def update(self,tilelist,surface,keys):
         self.keyupdate(keys)
         self.updatecollide(tilelist)
         self.updatesprite(surface)
+        self.updateinvun()
+        if not self.hastriedshot:
+            self.shoottimer.update()
+        else:
+            self.hastriedshot = False
+    def canshoot(self):
+        self.hastriedshot = True
+        if self.shoottimer.update():
+            self.shoottimer.reset()
+            return True
+            
     def updatecollide(self,tilelist):
         self.deltax = self.pos[0]
         #adds the x velocity, then checks if a tile collision occurs
@@ -223,8 +262,8 @@ class Player:
             
         if self.direction != "right":
             image = pygame.transform.flip(image,True,False)
-            
-        surface.blit(image,self.rect)
+        if not self.invunflash:
+            surface.blit(image,self.rect)
     def updatepos(self):
         self.pos = list(self.rect.center)
 

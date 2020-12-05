@@ -144,9 +144,12 @@ def treestorooms(tree):
         else:
             #assign spawn room
             room = rooms[stage]["spawn"][0]
-        room = room["tiles"]
+        #room = room["tiles"]
         connected = m.getconnected(tree,key)
-        room = processroom(room,connected)
+        tiles = room["tiles"]
+        tiles = processroom(tiles,connected)
+        
+        room["tiles"] = tiles
         roomdict[key] = r.Room(room)
     #get the nodes where special rooms should be added
 
@@ -184,20 +187,25 @@ class Roomtransition:
                                  "s":(0,-1)}
         self.betweenroomanimate = False
         self.slip = 0.2
-
+            
     #used to check if the transition should be started (i.e. if the player moves to a new room)
-    def updatestart(self,player,surface,triggers,roomdict,tree,currentroom):
+    def updatestart(self,explored,entities,player,surface,triggers,roomdict,tree,currentroom):
         direction = self.gettriggers(triggers)
         nextroom = self.getnextroom(direction,currentroom,tree)
         #start the transition if the player has moved to a new room
         if direction != None and nextroom and not self.betweenroomanimate:
             #set the position of each room surface
             self.unitmove = self.animdirectionunit[direction]
-            self.unitmove = vector(self.unitmove)*(screen.get_width()-r.TILESIZE)*-1
+            self.unitmove = vector(self.unitmove)*((r.TILENUM*r.TILESIZE)-r.TILESIZE)*-1
             self.currentpos = vector(0,0)
             self.nextpos = self.unitmove
+            entities.clearenemies()
+            entities.clearprojectiles()
+            
             self.updatescreen(player,surface,roomdict,currentroom)
             self.betweenroomanimate = True
+            return nextroom
+            
     #returns the direction that the screen is going to be moved in (based on where the player leaves the screen)
     #nothing is returned if the player is not moving to a new room
     def gettriggers(self,triggers):
@@ -216,7 +224,7 @@ class Roomtransition:
         self.currentsurface = surface.copy()
 
         #create a new surface and draw all the sprites on it that would normally be drawn directly onto the screen
-        self.nextsurface = pygame.Surface(screen.get_size())
+        self.nextsurface = pygame.Surface((r.TILESIZE*r.TILENUM,r.TILESIZE*r.TILENUM))
         self.updatesprites(player,self.nextsurface,roomdict,self.nextroom)
         
 
@@ -244,9 +252,7 @@ class Roomtransition:
         if self.betweenroomanimate:
             target = self.unitmove*-1
             #use lerp for smooth movement
-            #self.currentpos = lerp(vector(self.currentpos),target,self.slip)
             self.currentpos = self.currentpos.lerp(target,self.slip)
-            #self.nextpos = lerp(vector(self.nextpos),vector(0,0),self.slip)
             self.nextpos = self.nextpos.lerp(vector(0,0),self.slip)
             #draw both rooms to the screen
             surface.blit(self.currentsurface,self.currentpos)
@@ -416,27 +422,36 @@ minimap = Minimap()
 bordertiles = []
 
 #create invisible border round the whole screen
-for y in [-r.TILESIZE,screen.get_width()]:
-    for x in range(-r.TILESIZE,screen.get_width(),r.TILESIZE):
+for y in [-r.TILESIZE,r.TILENUM*r.TILESIZE]:
+    for x in range(-r.TILESIZE,r.TILENUM*r.TILESIZE,r.TILESIZE):
         bordertiles.append(r.Tile((x,y)))
-for x in [-r.TILESIZE,screen.get_width()]:
-    for y in range(-r.TILESIZE,screen.get_width(),r.TILESIZE):
+for x in [-r.TILESIZE,r.TILENUM*r.TILESIZE]:
+    for y in range(-r.TILESIZE,r.TILENUM*r.TILESIZE,r.TILESIZE):
         bordertiles.append(r.Tile((x,y)))
 
 #remove tiles from the invisible border that have an x or y coordinate in the middle of the room
-median = screen.get_width()//2
+median = r.TILENUM//2
 newlist = []
 
 fulltemp = fullscreen
 for tile in bordertiles:
-    if tile.rect.topleft[0] in range(median-(2*r.TILESIZE),median+(2*r.TILESIZE),r.TILESIZE):
+    if tile.rect.topleft[0] in range(median-2,median+2):
         pass
-    elif tile.rect.topleft[1] in range(median-(2*r.TILESIZE),median+(2*r.TILESIZE),r.TILESIZE):
+    elif tile.rect.topleft[1] in range(median-2,median+2):
         pass
     else:
         newlist.append(tile)
         
 bordertiles = newlist
+
+doortiles = []
+for y in range(median-1,median+3):
+    for x in range(0,r.TILENUM,r.TILENUM-1):
+    
+        doortiles.append(r.Tile((x,y-1),2))
+        doortiles.append(r.Tile((y-1,x),2))
+
+        
 
 blitpos = (0,0)
 scale = 1
@@ -444,10 +459,15 @@ scale = 1
 gamesurf = pygame.Surface(gamesize)
 blitpos,scale = initdisplay(gamesurf,screen,fullscreen)
 
-e.entities.add(e.Enemy())
+inencounter = False
 
+temproom = currentroom
+
+dooranimtimer = Timer(5)
+doorprogress = 0
 #screen = pygame.display.set_mode(inttuple(vector(screenlength,screenlength)*2),pygame.RESIZABLE)
 while True:
+    
     mousepos = (vector(pygame.mouse.get_pos())-vector(blitpos))/scale
     #mousepos += vector(blitpos)
     gamesurf = pygame.Surface(gamesize)
@@ -496,18 +516,49 @@ while True:
             player.rect.bottom = screenrect.top+(r.TILESIZE*2)
         #if the player leaves through the left side of the screen
         elif player.rect.right < screenrect.left:
+            #player.velocity[1] = 0
+            player.rect.center = player.pos
+            player.rect.y = min(193,player.rect.y)
             directions.append(K_LEFT)
             player.rect.left = screenrect.right-(r.TILESIZE*2)
         #if the player leaves through the right side of the screen
         elif player.rect.left > screenrect.right:
-            directions.append(K_RIGHT)
+            player.rect.center = player.pos
+            player.rect.y = min(193,player.rect.y)
             player.rect.right = screenrect.left+(r.TILESIZE*2)
+            directions.append(K_RIGHT)
         player.updatepos()
 
-    #check if transition animation should be started
-    transition.updatestart(player,gamesurf,directions,roomdict,tree,currentroom)
-
+    if currentroom not in exploredlist:
+        doorprogress = 0
+        inencounter = True
+        for enemy in roomdict[currentroom].enemies:
+            e.entities.add(e.Enemy(vector(enemy[1])*r.TILESIZE,enemy[0]))
+        exploredlist.append(currentroom)
+    else:
+        inencounter = False
+        
+        
+    if e.entities.enemylist == []:
+        if not roomdict[currentroom].completed:
+            roomdict[currentroom].completed = True
+        inencounter = False
+        if not inencounter and dooranimtimer.update():
+            dooranimtimer.reset()
+            doorprogress -= 1
+            
+            
+    else:
+        inencounter = True
+        if doorprogress != 4 and dooranimtimer.update():
+            dooranimtimer.reset()
+            doorprogress += 1
+            
     
+    
+    transition.updatestart(exploredlist,e.entities,player,gamesurf,directions,roomdict,tree,currentroom)
+
+    temproom = currentroom
     #get new map, reset explored list and set current room to spawn
     if 32 in keys:
         tree = m.generatetree(12)
@@ -540,8 +591,7 @@ while True:
     quick.print("+:toggle fullscreen")
         
     #if add current room to explored rooms if it has not already been explored
-    if currentroom not in exploredlist:
-        exploredlist.append(currentroom)
+    
     #draw black over the whole screen
     screen.fill((0,0,0))
     clock.tick(80)
@@ -549,16 +599,37 @@ while True:
     currentroom = transition.updateanimate(gamesurf,roomdict,currentroom)
     
     if pygame.mouse.get_pressed()[0]:
-        playerpos = vector(player.rect.center)
-        angle = vector(0,0).angle_to(mousepos-playerpos)
-        e.entities.add(e.Projectile(playerpos,0,1,(0,0),angle,1))
+        if player.canshoot():
+            playerpos = vector(player.rect.center)
+            angle = vector(0,0).angle_to(mousepos-playerpos)
+            e.entities.add(e.Projectile(playerpos,0,1,(0,0),angle,player.shotspeed))
         
     #if there is no transition animation, update sprites normally
     if not transition.intransition():
+        tiles = roomdict[currentroom].tilelist+bordertiles
+        if inencounter:
+            tiles += doortiles
+        
+        if doorprogress != 0:
+            for num in range(0,((doorprogress-1)*4)+1,4):
+                for num2 in range(4):
+                    doortiles[num+num2].update(gamesurf)
+        
+        """
+        for x in doortiles:
+            x.update(gamesurf)
+
+
+
+        """
         roomdict[currentroom].updatedecor(gamesurf)
-        e.entities.update(roomdict[currentroom].tilelist,player,gamesurf)
-        player.update(roomdict[currentroom].tilelist+bordertiles,gamesurf,keys)
+        e.entities.update(tiles,player,gamesurf)
+        player.update(tiles,gamesurf,keys)
         roomdict[currentroom].update(gamesurf)
+        
+        
+            
+    
     #screen.blit(pygame.transform.scale2x(pygame.transform.scale(screen,inttuple(vector(screen.get_size())))),(0,0))
     quick.print("fps:",int(clock.get_fps()))
     quick.print("projectiles:",len(e.entities.projectilelist))
@@ -599,4 +670,5 @@ while True:
     for key in keys:
         if key in keydirections:
             keys.remove(key)
-    
+
+    temproom = currentroom

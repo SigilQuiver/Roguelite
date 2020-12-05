@@ -41,7 +41,7 @@ class Entities:
                 sectlist[index].append(tilelist[num])
                 
         for projectile in self.projectilelist:
-            projectile.update(self.sections,sectlist,tilelist,self.enemylist,player,screen)
+            projectile.update(self.sections,sectlist,tilelist,self.enemylist,player,screen,self)
             
         for projectile in self.projectilelist:
             try:
@@ -65,7 +65,7 @@ class Entities:
                 
     def updateenemies(self,tilelist,player,screen):
         for enemy in self.enemylist:
-            enemy.update(tilelist,player,screen)
+            enemy.update(tilelist,player,screen,self)
             
         for enemy in self.enemylist:
             try:
@@ -97,11 +97,20 @@ class Entities:
         return False
 
     def update(self,tilelist,player,screen):
-        
-            
         self.updateprojectiles(tilelist,player,screen)
         self.updatedusts()
         self.updateenemies(tilelist,player,screen)
+    def clearprojectiles(self):
+        self.projectilelist = []
+    def clearenemies(self):
+        self.enemylist = []
+    def cleardust(self):
+        self.dustlist = []
+    def clearenemyprojectiles(self):
+        newlist = []
+        for projectile in self.projectilelist:
+            if not projectile.friendly:
+                projectile.ondeath()
 
 class Entity:
     def __init__(self,pos=(0,0),ident=1,velocity=(0,0),rotation=0,speed=0):
@@ -135,27 +144,37 @@ class Entity:
 class Projectile(Entity):
     def __init__(self,pos=(0,0),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0):
         Entity.__init__(self,pos,ident,velocity,rotation,speed)
-        self.friendly=False
+        self.pierce = 5
+        self.friendly=True
         self.spectral=False
         self.hit = []
+        self.initid()
     def initid(self):
         if self.id == 1:
             self.friendly=True
-            
-
+            self.damage = 2
+        if self.id == 2:
+            self.friendly=False
     def tilecollide(self):
-        self.delete=True
+        self.ondeath()
         pass
-    def enemycollide(self,collidelist):
+    def enemycollide(self,enemylist):
+        
+        for enemy in enemylist:
+            self.pierce -=1
+            enemy.hp -= self.damage
+            if self.pierce == 0:
+                self.ondeath()
         pass
-    def playercollide(self,playerss):
-        pass
+    def playercollide(self,player):
+        player.damage()
     def offscreen(self,screen):
         if False:
             pass
         else:
             self.delete=True
-            
+    def ondeath(self):
+        self.delete = True
     def normalupdate(self):
         if self.id == 1:
             if self.speed !=0:
@@ -164,7 +183,7 @@ class Projectile(Entity):
                 self.pos = vector(self.pos)+self.velocity
         pass
 
-    def update(self,sections,sectlist,tilelist,enemylist,player,screen):
+    def update(self,sections,sectlist,tilelist,enemylist,player,screen,entities):
         self.normalupdate()
         self.rect.center = self.pos
         if not self.spectral:
@@ -173,12 +192,19 @@ class Projectile(Entity):
                 for tile in sectlist[num]:
                     if self.rect.colliderect(tile):
                         self.tilecollide()
+                        break
                     
         if self.friendly:
-
             collidelist = self.rect.collidelistall(enemylist)
             if collidelist !=[]:
-                self.enemycollide(collidelist)
+                enemycollidelist = []
+                for num in collidelist:
+                    enemy = enemylist[num]
+                    if enemy not in self.hit:
+                        self.hit.append(enemy)
+                        enemycollidelist.append(enemy)
+                    
+                self.enemycollide(enemycollidelist)
         else:
             if self.rect.colliderect(player.rect):
                 self.playercollide(player)
@@ -202,12 +228,11 @@ class Dust(Entity):
         
         
 class Enemy(Entity):
-    def __init__(self,pos=(90,90),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0):
+    def __init__(self,pos=(90,90),ident=1,velocity=(0,0),rotation=0,speed=0):
         Entity.__init__(self,pos,ident,velocity,rotation)
         #self.speed = 1
-        self.image = pygame.Surface((30,22))
-        self.image.fill((100,100,100))
-        self.rect = self.image.get_rect()
+        self.hp = 1
+        
         self.contactdamage = 1
         self.shootdamage = 1
         self.flying = False
@@ -215,15 +240,34 @@ class Enemy(Entity):
                   "bottom":False,
                   "left":False,
                   "right":False}
+        self.initid()
+        tilerect = pygame.Rect((0,0),(r.TILESIZE,r.TILESIZE))
+        tilerect.topleft = pos
+        self.rect = self.image.get_rect()
+        self.rect.center = tilerect.center
     def initid(self):
         if self.id == 1:
+            self.image = pygame.Surface((30,22))
+            self.image.fill((100,100,100))
             self.jumping = False
             self.jumptimer = Timer(40)
             self.direction = ["left","right"]
+            if randint(0,1) == 1:
+                self.direction.reverse()
             self.speed = 3
             self.velocity[0] = -self.speed
-
-    def normalupdate(self,screen,tilelist):
+            self.hp = 10
+        if self.id == 2:
+            self.image = pygame.Surface((22,22))
+            self.image.fill((100,100,100))
+            self.shoottimer = Timer(40)
+            self.direction = ["left","right"]
+            if randint(0,1) == 1:
+                self.direction.reverse()
+            self.speed = 3
+            self.velocity[0] = -self.speed
+            self.hp = 10
+    def normalupdate(self,screen,tilelist,entities):
         if self.id == 1:
             self.velocity[1] = min(self.velocity[1]+GRAVITY,MAXY)
             if self.sides["left"] or self.sides["right"]:#self.velocity[0] == 0:
@@ -242,11 +286,21 @@ class Enemy(Entity):
                     self.velocity[0] = -self.speed
                 else:
                     self.velocity[0] = self.speed
-            if not screen.get_rect().colliderect(self.rect):
-                self.pos = (90,90)
+        if self.id ==2:
+            if self.sides["left"] or self.sides["right"]:#self.velocity[0] == 0:
+                self.direction.reverse()
+                
+            if self.shoottimer.update():
+                self.shoottimer.reset()
+                entities.append(Projectile(self.pos,0,2,(0,0),45,2))
+                entities.append(Projectile(self.pos,0,2,(0,0),45+90,2))
+        if not screen.get_rect().colliderect(self.rect):
+            self.pos = (90,90)
+            
+                
                 
     def playercollide(self,player):
-        pass
+        player.damage()
     
     def moveofftile(self,tilelist):
         self.pos = list(self.pos)
@@ -288,14 +342,15 @@ class Enemy(Entity):
                     self.sides["right"] = True
         
         self.pos = self.rect.center
-            
-    def update(self,tilelist,player,screen):
-        
-        self.normalupdate(screen,tilelist)
+    def ondeath(self):
+        self.delete = True
+    def update(self,tilelist,player,screen,entities):
+        if self.hp <=0:
+            self.ondeath()
+        self.normalupdate(screen,tilelist,entities)
         self.rect.center = self.pos
         if self.rect.colliderect(player.rect):
             self.playercollide(player)
-            
 
         self.moveofftile(tilelist)
                 
