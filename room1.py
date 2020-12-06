@@ -162,8 +162,11 @@ SURFACES = {"grasstile":pygame.Rect(4,6,22,22),
             "stonetilebottom":pygame.Rect(4,52,22,1)
             }
 SURFACES = returnsprites(spritesheet,SURFACES)
-SURFACES["gatetile"] = pygame.Surface((TILESIZE,TILESIZE))
-SURFACES["gatetile"].fill((255,0,0))
+SURFACES["gatetile1"] = pygame.image.load("sprites/gatetile.png")
+SURFACES["gatetile1"].convert()
+SURFACES["gatetile2"] = pygame.transform.rotate(pygame.image.load("sprites/gatetile.png"),90)
+SURFACES["gatetile2"].convert()
+
 
 
 """

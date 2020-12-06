@@ -289,7 +289,6 @@ class Minimap:
         self.transparency = 255
         pass
     def update(self,keys,screen,tree,explored,currentroom,pos=(0,0)):
-        #
         adjacent = m.getunexplored(tree,explored)
         notinclude = m.getnotincluded(tree,explored)
         
@@ -448,8 +447,8 @@ doortiles = []
 for y in range(median-1,median+3):
     for x in range(0,r.TILENUM,r.TILENUM-1):
     
-        doortiles.append(r.Tile((x,y-1),2))
-        doortiles.append(r.Tile((y-1,x),2))
+        doortiles.append(r.Tile((x,y-1),"gatetile1"))
+        doortiles.append(r.Tile((y-1,x),"gatetile2"))
 
         
 
@@ -580,15 +579,18 @@ while True:
         pixelperfect = not pixelperfect
         blitpos,scale = initdisplay(gamesurf,screen,fullscreen)
         keys.remove(K_p)
+    if K_c in keys:
+        e.entities.clearenemies()
 
     #debug text
     quick.print("space:reset")
     quick.print("1:save")
     quick.print("2:load")
-    quick.print("e:teleport")
+    quick.print("e:teleport to mouse")
     quick.print("q:upwards velocity")
     quick.print("p:pixelperfect")
     quick.print("+:toggle fullscreen")
+    quick.print("c:clear enemies")
         
     #if add current room to explored rooms if it has not already been explored
     
@@ -609,23 +611,16 @@ while True:
         tiles = roomdict[currentroom].tilelist+bordertiles
         if inencounter:
             tiles += doortiles
-        
+        roomdict[currentroom].updatedecor(gamesurf)
         if doorprogress != 0:
             for num in range(0,((doorprogress-1)*4)+1,4):
                 for num2 in range(4):
                     doortiles[num+num2].update(gamesurf)
+        roomdict[currentroom].update(gamesurf)
         
-        """
-        for x in doortiles:
-            x.update(gamesurf)
-
-
-
-        """
-        roomdict[currentroom].updatedecor(gamesurf)
         e.entities.update(tiles,player,gamesurf)
         player.update(tiles,gamesurf,keys)
-        roomdict[currentroom].update(gamesurf)
+        
         
         
             
