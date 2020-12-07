@@ -88,17 +88,17 @@ class Entities:
             except:
                 projectile.delete = False
                 
-    def updatedusts(self):
+    def updatedusts(self,screen):
         for dust in self.dustlist:
-            dust.update()
+            dust.update(screen)
             
         for dust in self.dustlist:
             try:
-                if projectile.delete:
-                    self.dustlist.remove(projectile)
+                if dust.delete:
+                    self.dustlist.remove(dust)
 
             except:
-                projectile.delete = False
+                dust.delete = False
                 
     def updateenemies(self,tilelist,player,screen):
         for enemy in self.enemylist:
@@ -113,9 +113,9 @@ class Entities:
                 enemy.delete = False
                 
     def add(self,obj):
-        if self.isenemy(obj):
+        if self.isenemy(obj)and len(self.projectilelist)<400:
             self.enemylist.append(obj)
-        elif self.isdust(obj):
+        elif self.isdust(obj)and len(self.projectilelist)<400:
             self.dustlist.append(obj)
         elif self.isprojectile(obj)and len(self.projectilelist)<400:
             self.projectilelist.append(obj)
@@ -135,7 +135,7 @@ class Entities:
 
     def update(self,tilelist,player,screen):
         self.updateprojectiles(tilelist,player,screen)
-        self.updatedusts()
+        self.updatedusts(screen)
         self.updateenemies(tilelist,player,screen)
     def clearprojectiles(self):
         self.projectilelist = []
@@ -178,7 +178,7 @@ class Entity:
         
 PROJECTILESURFACES = []
 PROJECTILESURFACES.append([pygame.image.load("sprites/bullet.png")])
-PROJECTILESURFACES.append([pygame.image.load("sprites/bubble.png")])#spritesheettolist(pygame.image.load("sprites/bubble.png"),2,False,False))
+PROJECTILESURFACES.append(spritesheettolist(pygame.image.load("sprites/bubble.png"),4,False,False))
 
 class Projectile(Entity):
     def __init__(self,pos=(0,0),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0):
@@ -200,17 +200,22 @@ class Projectile(Entity):
             self.damage = 2
         if self.id == 2:
             self.friendly=False
-            self.imagetimer = Timer(15)
-    def tilecollide(self):
-        self.ondeath()
+            self.imagetimer = Timer(20)
+    def tilecollide(self,entities):
+        self.ondeath(entities)
         pass
-    def enemycollide(self,enemylist):
+    def enemycollide(self,enemylist,entities):
         
         for enemy in enemylist:
             self.pierce -=1
             enemy.hp -= self.damage
             if self.pierce == 0:
-                self.ondeath()
+                self.ondeath(entities)
+
+            for x in range(randint(2,4)):
+                entities.add(Dust(self.pos,2,(0,0),self.rotation+90+randint(-20,20),randint(3,7)))
+            for x in range(randint(2,4)):
+                entities.add(Dust(self.pos,2,(0,0),self.rotation-90+randint(-20,20),randint(3,7)))
         pass
     def playercollide(self,player):
         player.damage()
@@ -219,8 +224,11 @@ class Projectile(Entity):
             pass
         else:
             self.delete=True
-    def ondeath(self):
+    def ondeath(self,entities):
         self.delete = True
+        if self.id == 1:
+            for x in range(randint(2,3)):
+                entities.add(Dust(self.pos,1,(0,0),self.rotation+180+randint(-90,90),randint(4,5)))
     def normalupdate(self,entities):
         if self.id == 1:
             self.image = self.images[0]
@@ -249,7 +257,7 @@ class Projectile(Entity):
             for num in collisions:
                 for tile in sectlist[num]:
                     if self.rect.colliderect(tile):
-                        self.tilecollide()
+                        self.tilecollide(entities)
                         break
                     
         if self.friendly:
@@ -262,7 +270,7 @@ class Projectile(Entity):
                         self.hit.append(enemy)
                         enemycollidelist.append(enemy)
                     
-                self.enemycollide(enemycollidelist)
+                self.enemycollide(enemycollidelist,entities)
         else:
             if self.rect.colliderect(player.rect):
                 self.playercollide(player)
@@ -276,27 +284,58 @@ class Projectile(Entity):
 
 class Dust(Entity):
     def __init__(self,pos=(0,0),ident=1,velocity=(0,0),rotation=0,speed=0):
-        Entity.__init__(self,pos,ident,velocity,rotation)
+        Entity.__init__(self,pos,ident,velocity,rotation,speed)
         self.image = pygame.Surface((2,2))
         self.image.fill((100,100,100))
         self.visible = True
+        self.initid()
     def initid(self):
         if self.id == 1:
-            self.visible == False
-            self.colour = (100,100,100)
-            self.slip = 0.2
+            self.visible = False
+            self.colour = (192,192,192)
+            self.linesize = 1
+            self.slip = 0.80
+            self.deletetimer = Timer(40)
+            
+            self.gravity = 0.1
+            self.velocity = vector(self.speed,0)
+            self.velocity.rotate_ip(self.rotation)
+        if self.id == 2:
+            self.visible = False
+            self.colour = (90,90,90)
+            self.linesize = 2
+            self.slip = 0.85
+            self.deletetimer = Timer(10)
+            
+            
         pass
     def normalupdate(self,screen):
-        previouspos = self.pos
-        self.velocity = vector(self.speed,0).rotate(self.rotation)
-        self.pos = vector(self.pos)+self.velocity
-        self.speed = lerp(self.speed,0,self.slip)
-        linesize = 2
-        if self.speed < 0.2:
-            linesize = 1
-        pygame.draw.line(screen,self.colour,previouspos,self.pos,linesize)
-        if self.speed == 0:
-            self.delete = True
+        if self.id == 1:
+            #self.gravity = max(self.gravity+0.02,0.2)
+            previouspos = list(self.pos)
+            self.velocity  = self.velocity.lerp(vector(0,0.4),0.2)
+            self.pos = vector(self.pos)+self.velocity
+            self.speed = lerp(self.speed,0,self.slip)
+            
+            pygame.draw.line(screen,self.colour,previouspos,self.pos,self.linesize)
+
+            if self.deletetimer.update():
+                self.delete = True
+                
+        if self.id == 2:
+            previouspos = list(self.pos)
+            self.velocity = vector(self.speed,0)
+            self.velocity.rotate_ip(self.rotation)
+            self.pos = vector(self.pos)+self.velocity
+            self.speed = lerp(self.speed,0,self.slip)
+            
+            pygame.draw.line(screen,self.colour,previouspos,self.pos,self.linesize)
+            if self.speed <= 0.1:
+                if self.deletetimer.update():
+                    self.deletetimer.reset()
+                    self.linesize -= 1
+                if self.linesize <= 0:
+                    self.delete = True
         
             
         
