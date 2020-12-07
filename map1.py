@@ -413,7 +413,7 @@ def getnotincluded(tree,exploredlist):
     return notinclude
     
 #returns a modfied surface with the tree visualization on it
-def generatemapsurface(tree,surf,keyshade=[],scale=None,notinclude=[],currentroom=None):
+def generatemapsurface(tree,specialdict,surf,keyshade=[],scale=None,notinclude=[],currentroom=None):
     #get the center of the surface to put the map on
     center = vector(surf.get_rect().size)/2
     nodestoadd = []
@@ -434,6 +434,15 @@ def generatemapsurface(tree,surf,keyshade=[],scale=None,notinclude=[],currentroo
             point2 = vector(coorddict[tree[key][0]])*length
             point2 += center
             colour = (255,255,255)
+            
+            if key in specialdict:
+                if specialdict[key] == "item":
+                    colour = (0,255,0)
+                if specialdict[key] == "boss":
+                    colour = (255,0,0)
+                if specialdict[key] == "shop":
+                    colour = (0,0,255)
+            
             if key in keyshade and tree[key][0] in keyshade:
                 colour = (100,100,100)
             pygame.draw.line(surf,colour,point1,point2,length//5)
@@ -444,6 +453,13 @@ def generatemapsurface(tree,surf,keyshade=[],scale=None,notinclude=[],currentroo
                 nodecolour = (100,100,100)
             if key == currentroom:
                 nodecolour = (100,255,100)
+            if key in specialdict:
+                if specialdict[key] == "item":
+                    nodecolour = (0,255,0)
+                if specialdict[key] == "boss":
+                    nodecolour = (255,0,0)
+                if specialdict[key] == "shop":
+                    nodecolour = (0,0,255)
             if scale:
                 length2 = int(length*0.8)
                 nodestoadd.append(Node(point1,nodecolour,length2))

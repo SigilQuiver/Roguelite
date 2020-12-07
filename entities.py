@@ -26,19 +26,26 @@ def outline(image):
         newimage.blit(surf,pos)
     return newimage
 
-def spritesheettolist(spritesheet,framenum):
+def spritesheettolist(spritesheet,framenum,fulloutline=False,dooutline=True):
     imagelist = []
     xtravel = spritesheet.get_width()//framenum 
-    for x in range(0,spritesheet.get_width()+1,xtravel):
+    for x in range(0,spritesheet.get_width()+1-xtravel,xtravel):
         newsurf = pygame.Surface(vector(xtravel,spritesheet.get_height()),pygame.SRCALPHA)
         newsurf.fill((0,0,0,0))
         newsurf.blit(spritesheet,(-x,0))
         outlinesurf = outline(newsurf)
-        newsurf2 = pygame.Surface(vector(xtravel,spritesheet.get_height())+vector(2,1),pygame.SRCALPHA)
+        if not fulloutline:
+            extra = vector(2,1)
+        else:
+            extra = vector(2,2)
+        newsurf2 = pygame.Surface(vector(xtravel,spritesheet.get_height())+extra,pygame.SRCALPHA)
         newsurf2.fill((0,0,0,0))
         newsurf2.blit(outlinesurf,(0,0))
         newsurf2.blit(newsurf,(1,1))
-        imagelist.append(newsurf2)
+        if dooutline:
+            imagelist.append(newsurf2)
+        else:
+            imagelist.append(newsurf)
     return imagelist
 
 class Entities:
@@ -169,7 +176,9 @@ class Entity:
         imagerect.center = self.pos
         screen.blit(tempimage,imagerect)
         
-        
+PROJECTILESURFACES = []
+PROJECTILESURFACES.append([pygame.image.load("sprites/bullet.png")])
+PROJECTILESURFACES.append([pygame.image.load("sprites/bubble.png")])#spritesheettolist(pygame.image.load("sprites/bubble.png"),2,False,False))
 
 class Projectile(Entity):
     def __init__(self,pos=(0,0),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0):
@@ -179,12 +188,19 @@ class Projectile(Entity):
         self.spectral=False
         self.hit = []
         self.initid()
+        try:
+            self.images = PROJECTILESURFACES[ident-1]
+        except:
+            self.images = []
+        if self.images != []:
+            self.rect = self.images[0].get_rect()
     def initid(self):
         if self.id == 1:
             self.friendly=True
             self.damage = 2
         if self.id == 2:
             self.friendly=False
+            self.imagetimer = Timer(15)
     def tilecollide(self):
         self.ondeath()
         pass
@@ -205,13 +221,20 @@ class Projectile(Entity):
             self.delete=True
     def ondeath(self):
         self.delete = True
-    def normalupdate(self):
+    def normalupdate(self,entities):
         if self.id == 1:
+            self.image = self.images[0]
+            self.imagerotation = -self.rotation
             if self.speed !=0:
                 self.velocity = vector(self.speed,0)
                 self.velocity.rotate_ip(self.rotation)
                 self.pos = vector(self.pos)+self.velocity
+                
         if self.id == 2:
+            self.image = self.images[0]
+            if self.imagetimer.update():
+                self.imagetimer.reset()
+                self.images.append(self.images.pop(0))
             if self.speed !=0:
                 self.velocity = vector(self.speed,0)
                 self.velocity.rotate_ip(self.rotation)
@@ -219,7 +242,7 @@ class Projectile(Entity):
         pass
 
     def update(self,sections,sectlist,tilelist,enemylist,player,screen,entities):
-        self.normalupdate()
+        self.normalupdate(entities)
         self.rect.center = self.pos
         if not self.spectral:
             collisions = self.rect.collidelistall(sections)
@@ -254,17 +277,39 @@ class Projectile(Entity):
 class Dust(Entity):
     def __init__(self,pos=(0,0),ident=1,velocity=(0,0),rotation=0,speed=0):
         Entity.__init__(self,pos,ident,velocity,rotation)
+        self.image = pygame.Surface((2,2))
+        self.image.fill((100,100,100))
+        self.visible = True
     def initid(self):
+        if self.id == 1:
+            self.visible == False
+            self.colour = (100,100,100)
+            self.slip = 0.2
         pass
-    def normalupdate(self):
+    def normalupdate(self,screen):
+        previouspos = self.pos
+        self.velocity = vector(self.speed,0).rotate(self.rotation)
+        self.pos = vector(self.pos)+self.velocity
+        self.speed = lerp(self.speed,0,self.slip)
+        linesize = 2
+        if self.speed < 0.2:
+            linesize = 1
+        pygame.draw.line(screen,self.colour,previouspos,self.pos,linesize)
+        if self.speed == 0:
+            self.delete = True
+        
+            
+        
         pass
-    def update(self):
-        self.normalupdate()
+    def update(self,screen):
+        self.normalupdate(screen)
+        if self.visible:
+            self.drawsprite(screen)
 
 
 ENEMYSURFACES = []
 ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/froge.png"),2))
-
+ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/mushroom.png"),4,True))
 class Enemy(Entity):
     def __init__(self,pos=(90,90),ident=1,velocity=(0,0),rotation=0,speed=0):
         Entity.__init__(self,pos,ident,velocity,rotation)
@@ -274,7 +319,6 @@ class Enemy(Entity):
             self.images = ENEMYSURFACES[ident-1]
         except:
             self.images = []
-        print(self.images)
         self.hp = 1
         self.contactdamage = 1
         self.shootdamage = 1
@@ -307,13 +351,14 @@ class Enemy(Entity):
             self.velocity[1] = -1
             self.image = pygame.Surface((22,22))
             self.image.fill((100,100,100))
-            self.shoottimer = Timer(200)
+            self.shoottimer = Timer(120)
             self.direction = ["left","right"]
             if randint(0,1) == 1:
                 self.direction.reverse()
             self.speed = 1
             self.velocity[0] = -self.speed
             self.hp = 10
+            self.imagetimer = Timer(10)
     def normalupdate(self,screen,tilelist,entities):
         if self.id == 1:
             self.velocity[1] = min(self.velocity[1]+GRAVITY,MAXY)
@@ -325,7 +370,7 @@ class Enemy(Entity):
                 self.velocity[0] = 0
                 if self.jumptimer.update():
                     self.jumptimer.reset()
-                    self.velocity[1] = -5
+                    self.velocity[1] = -6
                     self.jumping = True
                     
             if self.jumping:
@@ -340,6 +385,10 @@ class Enemy(Entity):
             if self.direction[0] == "left":
                 self.image = pygame.transform.flip(self.image,True,False)
         if self.id ==2:
+            self.image = self.images[0]
+            if self.imagetimer.update():
+                self.imagetimer.reset()
+                self.images.append(self.images.pop(0))
             if self.sides["left"] or self.sides["right"]:#self.velocity[0] == 0:
                 self.direction.reverse()
             if self.direction[0] == "left":

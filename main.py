@@ -1,4 +1,4 @@
-#this is the main script for the game, which uses all the other modules
+    #this is the main script for the game, which uses all the other modules
 import pygame
 from pygame.locals import *
 
@@ -152,9 +152,20 @@ def treestorooms(tree):
         room["tiles"] = tiles
         roomdict[key] = r.Room(room)
     #get the nodes where special rooms should be added
-
+    specialdict = assignspecialrooms(tree)
+    print(specialdict)
+    for roomkey in specialdict:
+        contents = specialdict[roomkey]
+        room = rooms[stage][contents][randint(0,len(rooms[stage][contents])-1)]
+        print()
+        connected = m.getconnected(tree,roomkey)
+        tiles = room["tiles"]
+        tiles = processroom(tiles,connected)
+        
+        room["tiles"] = tiles
+        roomdict[roomkey] = r.Room(room)
     
-    return roomdict
+    return roomdict,specialdict
 
 #saves the state of the current map into a dat file
 def saverun(tree,roomdict,currentroom,exploredlist):
@@ -288,7 +299,7 @@ class Minimap:
         self.currentroom = ""
         self.transparency = 255
         pass
-    def update(self,keys,screen,tree,explored,currentroom,pos=(0,0)):
+    def update(self,specialdict,keys,screen,tree,explored,currentroom,pos=(0,0)):
         adjacent = m.getunexplored(tree,explored)
         notinclude = m.getnotincluded(tree,explored)
         
@@ -310,8 +321,8 @@ class Minimap:
         if self.currentroom != currentroom or self.previousexplored != explored:
             #update the surface for the minimap
             self.surf = pygame.Surface(surfacedims)
-            self.surf = m.generatemapsurface(tree,self.surf,adjacent,True,notinclude,currentroom)
-            self.updatebigmap(tree,explored,currentroom)
+            self.surf = m.generatemapsurface(tree,specialdict,self.surf,adjacent,True,notinclude,currentroom)
+            self.updatebigmap(specialdict,tree,explored,currentroom)
             self.currentroom = currentroom
             self.previousexplored = explored.copy()
         #if the tree changes, change the coordinate dictionary
@@ -347,11 +358,11 @@ class Minimap:
             screen.blit(shade,(0,0))
             screen.blit(self.bigmap,bigrect)
     #used to update the surface of the enlarged map when it needs to be
-    def updatebigmap(self,tree,explored,currentroom):
+    def updatebigmap(self,specialdict,tree,explored,currentroom):
         adjacent = m.getunexplored(tree,exploredlist)
         notinclude = m.getnotincluded(tree,exploredlist)
         self.bigmap.fill((0,0,0))
-        self.bigmap = m.generatemapsurface(tree,self.bigmap,adjacent,True,notinclude,currentroom)
+        self.bigmap = m.generatemapsurface(tree,specialdict,self.bigmap,adjacent,True,notinclude,currentroom)
 
     def changealpha(self,player,mousepos):
         mintrans = 80
@@ -403,7 +414,7 @@ tree = m.generatetree(12)
 #starts the player at spawn, with no explored rooms
 currentroom = "A"
 exploredlist = []
-roomdict = treestorooms(tree)
+roomdict,specialdict = treestorooms(tree)
 
 keys = []
 
@@ -642,7 +653,7 @@ while True:
     quick.update(gamesurf)
     #update minimap
     
-    minimap.update(keys,gamesurf,tree,exploredlist,currentroom)
+    minimap.update(specialdict,keys,gamesurf,tree,exploredlist,currentroom)
     minimap.changealpha(player,mousepos)
     #stretches the game to fit the screen, if pixel perfect mode is not being used
     if not pixelperfect:

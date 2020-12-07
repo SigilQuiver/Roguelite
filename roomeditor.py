@@ -27,9 +27,14 @@ while True:
     print("stages:",dictroom.keys())
     key = input("stage type (key):")
     #if exit or save is inputted, exit program
+    
+    if not key in dictroom.keys():
+        dictroom[key] = {}
     roomtypes = dictroom[key]
     print("roomtypes",roomtypes.keys())
     key2 = input("room type (key):")
+    if not key2 in roomtypes.keys():
+        roomtypes[key2] = []
     if key in ["exit","save"] or key2 in key in ["exit","save"]:
         break
     finished = False
