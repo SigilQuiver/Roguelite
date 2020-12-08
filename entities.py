@@ -163,7 +163,7 @@ class Entity:
         self.rect = self.image.get_rect()
         self.delete = False
         
-        self.initid()
+
     def initid(self):
         pass
     def drawsprite(self,screen):
@@ -187,20 +187,24 @@ class Projectile(Entity):
         self.friendly=True
         self.spectral=False
         self.hit = []
-        self.initid()
+        
         try:
-            self.images = PROJECTILESURFACES[ident-1]
+            self.images = list(PROJECTILESURFACES[ident-1])
         except:
             self.images = []
+        
         if self.images != []:
             self.rect = self.images[0].get_rect()
+        self.initid()
     def initid(self):
         if self.id == 1:
             self.friendly=True
             self.damage = 2
         if self.id == 2:
+            self.images2 = list(self.images)
             self.friendly=False
-            self.imagetimer = Timer(20)
+            self.imagetimer = Timer(15)
+
     def tilecollide(self,entities):
         self.ondeath(entities)
         pass
@@ -213,9 +217,9 @@ class Projectile(Entity):
                 self.ondeath(entities)
 
             for x in range(randint(2,4)):
-                entities.add(Dust(self.pos,2,(0,0),self.rotation+90+randint(-20,20),randint(3,7)))
+                entities.add(Dust(self.pos,2,(0,0),self.rotation+60+randint(-20,20),randint(3,7)))
             for x in range(randint(2,4)):
-                entities.add(Dust(self.pos,2,(0,0),self.rotation-90+randint(-20,20),randint(3,7)))
+                entities.add(Dust(self.pos,2,(0,0),self.rotation-60+randint(-20,20),randint(3,7)))
         pass
     def playercollide(self,player):
         player.damage()
@@ -229,6 +233,9 @@ class Projectile(Entity):
         if self.id == 1:
             for x in range(randint(2,3)):
                 entities.add(Dust(self.pos,1,(0,0),self.rotation+180+randint(-90,90),randint(4,5)))
+        if self.id == 2:
+            for x in range(randint(2,3)):
+                entities.add(Dust(self.pos,3,(0,0),randint(0,360),randint(1,3)))
     def normalupdate(self,entities):
         if self.id == 1:
             self.image = self.images[0]
@@ -239,6 +246,7 @@ class Projectile(Entity):
                 self.pos = vector(self.pos)+self.velocity
                 
         if self.id == 2:
+            
             self.image = self.images[0]
             if self.imagetimer.update():
                 self.imagetimer.reset()
@@ -307,6 +315,13 @@ class Dust(Entity):
             self.slip = 0.85
             self.deletetimer = Timer(10)
             
+        if self.id == 3:
+            self.visible = False
+            self.colour = (192,192,192)
+            self.linesize = 1
+            self.slip = 0.85
+            self.deletetimer = Timer(10)
+            
             
         pass
     def normalupdate(self,screen):
@@ -322,7 +337,7 @@ class Dust(Entity):
             if self.deletetimer.update():
                 self.delete = True
                 
-        if self.id == 2:
+        if self.id == 2 or self.id == 3:
             previouspos = list(self.pos)
             self.velocity = vector(self.speed,0)
             self.velocity.rotate_ip(self.rotation)
