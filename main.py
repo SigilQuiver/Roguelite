@@ -425,6 +425,7 @@ clock = pygame.time.Clock()
 transition = Roomtransition()
 
 player = platformer.Player()
+gun = platformer.Gun(player.pos)
 
 minimap = Minimap()
 
@@ -538,13 +539,15 @@ while True:
             player.rect.right = screenrect.left+(r.TILESIZE*2)
             directions.append(K_RIGHT)
         player.updatepos()
-
-    if currentroom not in exploredlist:
+        
+    if not currentroom in exploredlist:
+        exploredlist.append(currentroom)
+        
+    if not roomdict[currentroom].completed and not inencounter:
         doorprogress = 0
         inencounter = True
         for enemy in roomdict[currentroom].enemies:
             e.entities.add(e.Enemy(vector(enemy[1])*r.TILESIZE,enemy[0]))
-        exploredlist.append(currentroom)
     else:
         inencounter = False
         
@@ -559,6 +562,8 @@ while True:
             
             
     else:
+        if roomdict[currentroom].completed:
+            e.entities.clearenemies()
         inencounter = True
         if doorprogress != 4 and dooranimtimer.update():
             dooranimtimer.reset()
@@ -574,7 +579,7 @@ while True:
         tree = m.generatetree(12)
         currentroom = "A"
         exploredlist = []
-        roomdict = treestorooms(tree)
+        roomdict, specialdict = treestorooms(tree)
         keys.remove(32)
     if K_1 in keys:
         saverun(tree,roomdict,currentroom,exploredlist)
@@ -613,7 +618,7 @@ while True:
     
     if pygame.mouse.get_pressed()[0]:
         if player.canshoot():
-            playerpos = vector(player.rect.center)
+            playerpos = vector(gun.pos)
             angle = vector(0,0).angle_to(mousepos-playerpos)
             e.entities.add(e.Projectile(playerpos,0,1,(0,0),angle,player.shotspeed))
         
@@ -627,11 +632,12 @@ while True:
             for num in range(0,((doorprogress-1)*4)+1,4):
                 for num2 in range(4):
                     doortiles[num+num2].update(gamesurf)
+        
         roomdict[currentroom].update(gamesurf)
         
         e.entities.update(tiles,player,gamesurf)
         player.update(tiles,gamesurf,keys)
-        
+        gun.update(gamesurf,player,mousepos)
         
         
             
@@ -664,6 +670,7 @@ while True:
         gamerect.center = screenrect.center
         blitpos = gamerect.topleft
     #scales the screen up pixel perfectly,(so that each pixel is a square)
+    
     else:
         if scale > 1:
             gamesurf = pygame.transform.scale(gamesurf,inttuple(vector(gamesurf.get_size())*scale))

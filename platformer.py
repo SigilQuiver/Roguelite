@@ -9,6 +9,7 @@ import map1 as m
 import room1 as r
 
 from vector import *
+from surfacemethods import *
 
 pygame.init()
 
@@ -17,21 +18,7 @@ screen = pygame.display.set_mode((500,500),pygame.RESIZABLE)
 #this module creates constants for the gravity and maximum vertical velocity 
 GRAVITY = 0.4
 MAXY = 10
-def outline(image):
-    
-    poss = [[0,1],[1,0],[2,1],[1,2],[1,1]]
-    mask = pygame.mask.from_surface(image)
-    newimage = pygame.Surface(vector(image.get_size())+vector(2,2),pygame.SRCALPHA)
-    newimage.fill((0,0,0,0))
-    outlinelist = mask.outline()
-    outlinemask = pygame.Mask(image.get_size())
-    for coord in outlinelist:
-        outlinemask.set_at(coord,1)
-    surf = outlinemask.to_surface(unsetcolor=(0,0,0,0),setcolor=(0,0,0,255))
-    for pos in poss:
-        newimage.blit(surf,pos)
-    return newimage
-    
+
 def getdictfromimage():
     spritesheet = pygame.image.load("sprites/idle_run_jump_AA.png").convert_alpha()
     dims = vector(13,26)
@@ -42,7 +29,6 @@ def getdictfromimage():
         newimage.convert_alpha()
         newimage.blit(spritesheet,(-(x*dims[0]),0))
         imgoutline = outline(newimage)
-        #newimage.blit(imgoutline,(0,0))
         newimage.convert_alpha()
 
         finalimage = pygame.Surface(vector(imgoutline.get_size())-vector(0,1),pygame.SRCALPHA)
@@ -108,7 +94,7 @@ class Player:
         self.invunerable = False
         self.invuntimer = Timer(200)
         self.invunflash = False
-        self.invunflashtimer = Timer(15)
+        self.invunflashtimer = Timer(25)
 
         self.hastriedshot = False
         
@@ -267,7 +253,49 @@ class Player:
     def updatepos(self):
         self.pos = list(self.rect.center)
 
-                
+images1 = spritesheettolist(pygame.image.load("sprites/gunud.png"),2,False,False)
+images2 = spritesheettolist(pygame.image.load("sprites/gunlr.png"),2,False,False)
+class Gun:
+    def __init__(self,playerpos):
+        self.imagesup = images1
+        self.imagesside = images2
+        self.distancefrom = 15
+        self.pos = playerpos
+    def update(self,screen,player,mousepos):
+        playerpos = player.pos
+        
+        vectorto = vector(mousepos) - vector(playerpos)
+        angle = vector(0,0).angle_to(vectorto)
+        aimpos = vector(self.distancefrom,0)
+        aimpos.rotate_ip(angle)
+        aimpos += vector(playerpos)
+        self.pos = vector(self.pos).lerp(aimpos,0.3)
+        if vectorto.magnitude() > 20 or vectorto.magnitude()<1:
+            print(True)
+            self.pos = aimpos
+
+
+        self.image = self.imagesside[1]
+        if angle <0:
+            angle = 360+angle
+        if player.direction == "right":
+            if not(angle>90 and angle <270):
+                self.image = self.imagesside[0]
+                self.image = pygame.transform.flip(self.image,True,True)
+            self.image = pygame.transform.flip(self.image,False,True)
+        else:
+            if angle>90 and angle <270:
+                self.image = self.imagesside[0]
+                self.image = pygame.transform.flip(self.image,True,True)
+        self.image = pygame.transform.rotate(self.image,-angle)
+        
+        imgoutline = outline(self.image)
+        imgoutline.blit(self.image,(1,1))
+        
+        #self.image = imgoutline
+        self.rect = self.image.get_rect()
+        self.rect.center = self.pos
+        screen.blit(imgoutline,self.rect)
 
         
             
