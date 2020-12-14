@@ -153,11 +153,10 @@ def treestorooms(tree):
         roomdict[key] = r.Room(room)
     #get the nodes where special rooms should be added
     specialdict = assignspecialrooms(tree)
-    print(specialdict)
+    
     for roomkey in specialdict:
         contents = specialdict[roomkey]
         room = rooms[stage][contents][randint(0,len(rooms[stage][contents])-1)]
-        print()
         connected = m.getconnected(tree,roomkey)
         tiles = room["tiles"]
         tiles = processroom(tiles,connected)
@@ -539,7 +538,7 @@ while True:
             player.rect.right = screenrect.left+(r.TILESIZE*2)
             directions.append(K_RIGHT)
         player.updatepos()
-        
+    
     if not currentroom in exploredlist:
         exploredlist.append(currentroom)
         

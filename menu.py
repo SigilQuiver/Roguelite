@@ -8,7 +8,9 @@ from vector import *
 
 from text import *
 
-screen = pygame.display.set_mode((300,300))
+pygame.init()
+
+screen = pygame.display.set_mode((300,300),pygame.RESIZABLE)
 def changecolour(surf,colour1,colour2):
     surfback = surf.copy()
     surfback.fill((1,2,3))
@@ -48,3 +50,47 @@ class Quickprint:
 
 quick = Quickprint()
 
+
+class Button:
+    def __init__(self,text,pos):
+        self.textcolour = (192,192,192)
+        self.textimage = textgen.generatetext(text)
+        self.textimage = changecolour(self.textimage,(0,0,0),self.textcolour)
+        self.colourhighlight = 90
+        self.colournormal = 0
+        self.actualcolour = self.colournormal
+        self.buttonsurface = pygame.Surface((vector(self.textimage.get_size())+vector(1,1)))
+        self.rect = self.buttonsurface.get_rect()
+        self.rect.topleft = pos
+    def update(self,surface,mousepos):
+        
+        if self.rect.collidepoint(mousepos):
+            self.actualcolour = lerp(self.actualcolour,self.colourhighlight,0.9)
+        else:
+            self.actualcolour = lerp(self.actualcolour,self.colournormal,0.9)
+            
+        self.buttonsurface.fill((int(self.actualcolour),int(self.actualcolour),int(self.actualcolour)))
+        surface.blit(self.buttonsurface,self.rect)
+        surface.blit(self.textimage,vector(self.rect.topleft)+vector(1,1))
+        
+        if pygame.mouse.get_pressed()[0] and self.rect.collidepoint(mousepos):
+            return True
+        return False
+
+clock = pygame.time.Clock()
+
+btn1 = Button("cringe",(30,30))
+while True:
+
+    for event in pygame.event.get():
+        pass
+    
+    screen.fill((0,0,0))
+    clock.tick(90)
+    mousepos = pygame.mouse.get_pos()
+
+    btn1.update(screen,mousepos)
+    
+    pygame.display.flip()
+    
+    

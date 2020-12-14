@@ -262,36 +262,30 @@ class Gun:
         self.distancefrom = 15
         self.pos = playerpos
     def update(self,screen,player,mousepos):
-        playerpos = player.pos
-        
+        playerpos = inttuple(player.pos)
         vectorto = vector(mousepos) - vector(playerpos)
         angle = vector(0,0).angle_to(vectorto)
         aimpos = vector(self.distancefrom,0)
         aimpos.rotate_ip(angle)
         aimpos += vector(playerpos)
+        previouspos = vector(self.pos)
         self.pos = vector(self.pos).lerp(aimpos,0.3)
-        if vectorto.magnitude() > 20 or vectorto.magnitude()<1:
-            print(True)
+        if vectorto.magnitude() > 20 or vectorto.magnitude()<3:
             self.pos = aimpos
 
 
         self.image = self.imagesside[1]
         if angle <0:
             angle = 360+angle
-        if player.direction == "right":
-            if not(angle>90 and angle <270):
-                self.image = self.imagesside[0]
-                self.image = pygame.transform.flip(self.image,True,True)
-            self.image = pygame.transform.flip(self.image,False,True)
-        else:
-            if angle>90 and angle <270:
-                self.image = self.imagesside[0]
-                self.image = pygame.transform.flip(self.image,True,True)
+        if not(angle>90 and angle <270):
+            self.image = self.imagesside[0]
+            self.image = pygame.transform.flip(self.image,True,True)
+        self.image = pygame.transform.flip(self.image,False,True)
         self.image = pygame.transform.rotate(self.image,-angle)
         
         imgoutline = outline(self.image)
-        imgoutline.blit(self.image,(1,1))
         
+        imgoutline.blit(self.image,(1,1))
         #self.image = imgoutline
         self.rect = self.image.get_rect()
         self.rect.center = self.pos
