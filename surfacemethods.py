@@ -15,11 +15,16 @@ def outline(image):
     #outlining a mask only gives the inside pixels and gives coordinates, not another mask
     outlinelist = mask.outline()
     outlinemask = pygame.Mask(image.get_size())
+    surf = pygame.Surface(vector(image.get_size()),pygame.SRCALPHA)
+    surf.fill((0,0,0,0))
     #create an outline mask out of the outline coordinates
     for coord in outlinelist:
-        outlinemask.set_at(coord,1)
+        surf.set_at(coord,(0,0,0,255))
     #turn the outline mask into a surface
-    surf = outlinemask.to_surface(unsetcolor=(0,0,0,0),setcolor=(0,0,0,255))
+    #surf = outlinemask.to_surface(unsetcolor=(0,0,0,0),setcolor=(0,0,0,255))
+    
+
+    
     #blits the mask one pixel from the original picture's center for every cardinal direction
     #this is done because the current outline is only on the inside of the image
     for pos in poss:
@@ -60,3 +65,14 @@ def spritesheettolist(spritesheet,framenum,fulloutline=False,dooutline=True):
         else:
             imagelist.append(newsurf)
     return imagelist
+
+def changecolour(surf,colour1,colour2):
+    surfback = surf.copy()
+    surfback.fill((1,2,3))
+    surfback.blit(surf,(0,0))
+    surfback.set_colorkey(colour1)
+    surfback2 = surf.copy()
+    surfback2.fill((colour2))
+    surfback2.blit(surfback,(0,0))
+    surfback2.set_colorkey((1,2,3))
+    return surfback2

@@ -11,6 +11,8 @@ import room1 as r
 from vector import *
 from surfacemethods import *
 
+import entities as e
+
 pygame.init()
 
 screen = pygame.display.set_mode((500,500),pygame.RESIZABLE)
@@ -111,10 +113,10 @@ class Player:
                 self.invunflash = not self.invunflash
         if not self.invunerable:
             self.invunflash = False
-    def update(self,tilelist,surface,keys):
+    def update(self,gundir,tilelist,surface,keys):
         self.keyupdate(keys)
         self.updatecollide(tilelist)
-        self.updatesprite(surface)
+        self.updatesprite(surface,gundir)
         self.updateinvun()
         if not self.hastriedshot:
             self.shoottimer.update()
@@ -216,7 +218,7 @@ class Player:
         else:
             self.velocity[0] = 0
     #draws the sprite for the player
-    def updatesprite(self,surface):
+    def updatesprite(self,surface,gundir="right"):
         state = None
         
         image = self.image
@@ -239,14 +241,17 @@ class Player:
         if self.animtimer.update():
             self.animtimer.reset()
             if state != None:
-                self.dictimage[state].append(self.dictimage[state].pop(0))
+                if self.direction != gundir and state == "walk":
+                    self.dictimage[state].insert(0,self.dictimage[state].pop(len(self.dictimage[state])-1))
+                else:
+                    self.dictimage[state].append(self.dictimage[state].pop(0))
             
         if state != None:
             image = self.dictimage[state][0]
         else:
             image = self.image
             
-        if self.direction != "right":
+        if gundir != "right":
             image = pygame.transform.flip(image,True,False)
         if not self.invunflash:
             surface.blit(image,self.rect)
@@ -261,7 +266,9 @@ class Gun:
         self.imagesside = images2
         self.distancefrom = 15
         self.pos = playerpos
-    def update(self,screen,player,mousepos):
+        self.recoil = 0
+        self.recoilx = 0
+    def update(self,entities,shooting,screen,player,mousepos):
         playerpos = inttuple(player.pos)
         vectorto = vector(mousepos) - vector(playerpos)
         angle = vector(0,0).angle_to(vectorto)
@@ -269,19 +276,44 @@ class Gun:
         aimpos.rotate_ip(angle)
         aimpos += vector(playerpos)
         previouspos = vector(self.pos)
-        self.pos = vector(self.pos).lerp(aimpos,0.3)
-        if vectorto.magnitude() > 20 or vectorto.magnitude()<3:
+        self.pos = vector(self.pos).lerp(aimpos,0.5)
+
+        if shooting:
+            self.recoil = 27
+        else:
+            self.recoil = lerp(self.recoil,0,0.7)
+            
+        if vectorto.magnitude() > 20 or vectorto.magnitude()<0.5:
             self.pos = aimpos
 
 
         self.image = self.imagesside[1]
         if angle <0:
             angle = 360+angle
-        if not(angle>90 and angle <270):
+            
+        recoiladd = -self.recoil
+        gunoffset = 2
+        self.direction = "left"
+        if not(angle>90 and angle <270):#if not facing left
+            self.direction = "right"
             self.image = self.imagesside[0]
             self.image = pygame.transform.flip(self.image,True,True)
+            recoiladd = self.recoil
+        
+            if shooting:
+                playerpos = vector(self.pos)
+                angle = vector(0,0).angle_to(mousepos-playerpos)
+                bulletpos = playerpos+vector(0,-gunoffset).rotate(angle)
+                e.entities.add(e.Projectile(bulletpos,0,1,(0,0),angle,player.shotspeed))
+        else:
+            if shooting:
+                playerpos = vector(self.pos)
+                angle = vector(0,0).angle_to(mousepos-playerpos)
+                bulletpos = playerpos+vector(0,gunoffset).rotate(angle)
+                e.entities.add(e.Projectile(bulletpos,0,1,(0,0),angle,player.shotspeed))
+            
         self.image = pygame.transform.flip(self.image,False,True)
-        self.image = pygame.transform.rotate(self.image,-angle)
+        self.image = pygame.transform.rotate(self.image,-angle+recoiladd)
         
         imgoutline = outline(self.image)
         

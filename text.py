@@ -7,6 +7,8 @@ from random import *
 
 from vector import *
 
+from surfacemethods import *
+
 pygame.init()
 screen = pygame.display.set_mode((800,800))
 screen.fill((255,255,69))
@@ -59,6 +61,8 @@ class Textgenerator:
                 actualsize = (2,8)
             if char in small1:
                 actualsize = (1,8)
+            if char in big:
+                actualsize = (5,8)
             xpointer = x*dimensions[0]
             charsurf = pygame.Surface(actualsize)
             charsurf.blit(self.spritesheet,-vector(xpointer,ypointer))
@@ -87,7 +91,7 @@ class Textgenerator:
 
         pygame.display.flip()
         
-    def generatetext(self,text,surface = None,texttype = "small",pos = (0,0)):
+    def generatetext(self,text,surface = None,texttype = "small",pos = (0,0),colour = (0,0,0)):
         if surface == None:
             surfwidth = 0
             for char in text:
@@ -95,16 +99,16 @@ class Textgenerator:
                     try:
                         surfwidth += self.tilesizesmall[char][0]+1
                     except:
-                        surfwidth += self.tilesizesmall["A"][0]
+                        surfwidth += self.tilesizesmall["A"][0]+1
                 else:
                     try:
                         surfwidth += self.tilesizebig[char][0]+1
                     except:
-                        surfwidth += self.tilesizebig["A"][0]
+                        surfwidth += self.tilesizebig["A"][0]+1
             if texttype == "small":
-                surface = pygame.Surface((surfwidth,self.tilesizesmall["A"][1]))
+                surface = pygame.Surface((surfwidth,self.tilesizesmall["A"][1]+1))
             else:
-                surface = pygame.Surface((surfwidth,self.tilesizebig["A"][1]))
+                surface = pygame.Surface((surfwidth,self.tilesizebig["A"][1]+1))
             surface.fill((255,255,255))
             surface.set_colorkey((255,255,255))
         surfwidth = surface.get_width()
@@ -120,15 +124,17 @@ class Textgenerator:
                 if char != " ":
                     tile = self.tiledictsmall[char]
                     previousposition = (xpointer,ypointer)
-                    xpointer += tile.get_width()+1
-                    if xpointer >= surfwidth:
+                    xpointer += self.tilesizesmall[char][0]+1
+                    if xpointer > surfwidth:
                         xpointer = 0
                         ypointer += ytravel
                         previousposition = (xpointer,ypointer)
-                        xpointer += tile.get_width()+1
+                        xpointer += self.tilesizesmall[char][0]+1
+                    if colour != (0,0,0):
+                        tile = changecolour(tile,(0,0,0),colour)
                     surface.blit(tile,previousposition)
                 else:
-                    xpointer += self.tilesizesmall["A"][0]
+                    xpointer += self.tilesizesmall["A"][0]+1
             else:
                 if char.isalpha():
                     char = char.upper()
@@ -143,8 +149,9 @@ class Textgenerator:
                         xpointer = 0
                         ypointer += ytravel
                         previousposition = (xpointer,ypointer)
-                        print(self.tilesizebig[char])
                         xpointer += self.tilesizebig[char][0]+1
+                    if colour != (0,0,0):
+                        tile = changecolour(tile,(0,0,0),colour)
                     surface.blit(tile,previousposition)
                 else:
                     xpointer += self.tilesizebig["A"][0]

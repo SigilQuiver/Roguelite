@@ -1,6 +1,7 @@
     #this is the main script for the game, which uses all the other modules
 import pygame
 from pygame.locals import *
+from pygame._sdl2.video import Window
 
 import time
 from datetime import datetime
@@ -15,34 +16,8 @@ import platformer
 from menu import *
 from vector import *
 
-
-
 import pickle
-
-#the file to which a current playthrough will be saved to
-PICKLEFILE = "run.dat"
-
-#initialize pygame
-pygame.init()
-
-#the screenlength is the size of the screen where the player will be
-screenlength = r.TILESIZE*r.TILENUM
-#creates dimensions for the square screen that will be used for the game
-gamesize = (screenlength,screenlength)
-#variable used to toggle fullscreen
-fullscreen = True
-#pixel perfect determines if the screen stretches to fit the screen (often resulting in stretched pixels)
-#or if the screen is placed in the middle of the screen so that each pixel is a perfect square
-pixelperfect = True
-
-#creates a pygame screen object, some other modules have already done this, but this overrides all of the existing screens in those modules
-screen = pygame.display.set_mode((screenlength,screenlength),pygame.RESIZABLE)
-#gets the dimensions for the current display size
-fullscreensize = pygame.display.list_modes()[0]
-#creates a background to be drawn on top of other sprites every frame
-background = pygame.Surface(screen.get_rect().size)
-
-
+    
 #adds borders to a tuple representation of a room, leaving holes where the player can move to different rooms
 #the gaps will changed based on which direction the room is coming from
 def processroom(room,directions):
@@ -376,11 +351,11 @@ class Minimap:
         
 
 #is used to toggle fullscreen and center the game to the middle of the screen
-def initdisplay(gamesurf,screen,fullscreen=True,pixelperfect=False,windowedswitch=False):
-    rect = gamesurf.get_rect()
+def initdisplay(menu,screen,windowedswitch=False):
+    optiondict = menu.getoptions()
     #changes the screen object to fullscreen based on the fullscreen variable
-    if fullscreen:
-        screensize = fullscreensize
+    if optiondict["fullscreen"]:
+        screensize = optiondict["fullscreen resolution"]
         screen = pygame.display.set_mode(screensize,pygame.FULLSCREEN)
     else:
         if windowedswitch:
@@ -388,124 +363,44 @@ def initdisplay(gamesurf,screen,fullscreen=True,pixelperfect=False,windowedswitc
         else:
             screensize = screen.get_size()
         screen = pygame.display.set_mode(screensize,pygame.RESIZABLE)
-    #enlarges the screen up to 10 times, to find a scale(a multiplier to each pixel) that would work
-    for tempscale in range(1,10+1):
-        scalesize = vector(gamesize)*tempscale
-        x = scalesize[0]>screensize[0]
-        y = scalesize[1]>screensize[1]
-        if x or y:
-            scale = tempscale-1
-            break
-    #if the game cannot fit on the screen, raise an error
-    if scale < 0:
-        raise Exception ("screen display is too small")
+    return screen
 
-    #finds the topleft position that the game should be so that it is centered
-    rect= pygame.Rect((0,0),vector(gamesize)*scale)
-    screenrect = pygame.Rect((0,0),screensize)
-    rect.center = screenrect.center
-    blitpos = rect.topleft
-    return blitpos,scale
+def getbordertilesanddoortiles():
+    #generates invisible tiles slightly outside the screen to try and stop the player going out of bounds
+    bordertiles = []
 
-def updategamesprites():
-    pass
-tree = m.generatetree(12)
-#starts the player at spawn, with no explored rooms
-currentroom = "A"
-exploredlist = []
-roomdict,specialdict = treestorooms(tree)
+    #create invisible border round the whole screen
+    for y in [-r.TILESIZE,r.TILENUM*r.TILESIZE]:
+        for x in range(-r.TILESIZE,r.TILENUM*r.TILESIZE,r.TILESIZE):
+            bordertiles.append(r.Tile((x,y)))
+    for x in [-r.TILESIZE,r.TILENUM*r.TILESIZE]:
+        for y in range(-r.TILESIZE,r.TILENUM*r.TILESIZE,r.TILESIZE):
+            bordertiles.append(r.Tile((x,y)))
 
-keys = []
+    #remove tiles from the invisible border that have an x or y coordinate in the middle of the room
+    median = r.TILENUM//2
+    newlist = []
 
-betweenroomanimate = False
+    fulltemp = fullscreen
+    for tile in bordertiles:
+        if tile.rect.topleft[0] in range(median-2,median+2):
+            pass
+        elif tile.rect.topleft[1] in range(median-2,median+2):
+            pass
+        else:
+            newlist.append(tile)
+            
+    bordertiles = newlist
 
-clock = pygame.time.Clock()
-
-transition = Roomtransition()
-
-player = platformer.Player()
-gun = platformer.Gun(player.pos)
-
-minimap = Minimap()
-
-#generates invisible tiles slightly outside the screen to stop the player going out of bounds
-bordertiles = []
-
-#create invisible border round the whole screen
-for y in [-r.TILESIZE,r.TILENUM*r.TILESIZE]:
-    for x in range(-r.TILESIZE,r.TILENUM*r.TILESIZE,r.TILESIZE):
-        bordertiles.append(r.Tile((x,y)))
-for x in [-r.TILESIZE,r.TILENUM*r.TILESIZE]:
-    for y in range(-r.TILESIZE,r.TILENUM*r.TILESIZE,r.TILESIZE):
-        bordertiles.append(r.Tile((x,y)))
-
-#remove tiles from the invisible border that have an x or y coordinate in the middle of the room
-median = r.TILENUM//2
-newlist = []
-
-fulltemp = fullscreen
-for tile in bordertiles:
-    if tile.rect.topleft[0] in range(median-2,median+2):
-        pass
-    elif tile.rect.topleft[1] in range(median-2,median+2):
-        pass
-    else:
-        newlist.append(tile)
+    doortiles = []
+    for y in range(median-1,median+3):
+        for x in range(0,r.TILENUM,r.TILENUM-1):
         
-bordertiles = newlist
+            doortiles.append(r.Tile((x,y-1),"gatetile1"))
+            doortiles.append(r.Tile((y-1,x),"gatetile2"))
+    return bordertiles,doortiles
 
-doortiles = []
-for y in range(median-1,median+3):
-    for x in range(0,r.TILENUM,r.TILENUM-1):
-    
-        doortiles.append(r.Tile((x,y-1),"gatetile1"))
-        doortiles.append(r.Tile((y-1,x),"gatetile2"))
-
-        
-
-blitpos = (0,0)
-scale = 1
-
-gamesurf = pygame.Surface(gamesize)
-blitpos,scale = initdisplay(gamesurf,screen,fullscreen)
-
-inencounter = False
-
-temproom = currentroom
-
-dooranimtimer = Timer(5)
-doorprogress = 0
-#screen = pygame.display.set_mode(inttuple(vector(screenlength,screenlength)*2),pygame.RESIZABLE)
-while True:
-    
-    mousepos = (vector(pygame.mouse.get_pos())-vector(blitpos))/scale
-    #mousepos += vector(blitpos)
-    gamesurf = pygame.Surface(gamesize)
-    for event in pygame.event.get():
-        #if there is any change in the window size (e.g. if the windowed screen is maximized)
-        if event.type == pygame.VIDEORESIZE:
-            blitpos,scale = initdisplay(gamesurf,screen,fullscreen,pixelperfect,False)                    
-        #if the player presses the exit button on the window, close the window and stop the script        
-        if event.type == pygame.QUIT:
-            pygame.quit()
-            sys.exit()
-        if event.type == pygame.KEYDOWN:
-            keys.append(event.key)
-        if event.type == pygame.KEYUP:
-            try:
-                keys.remove(event.key)
-            except:
-                pass
-        
-    if K_ESCAPE in keys:
-        pygame.quit()
-        sys.exit()
-        
-    if K_EQUALS in keys:
-        keys.remove(K_EQUALS)
-        
-        fullscreen = not fullscreen
-        blitpos,scale = initdisplay(gamesurf,screen,fullscreen,pixelperfect,True)
+def moveplayertransition(gamesurf,transition,player):
     #assign direction to triggers(arrow keys in this case)
     keydirections = [K_UP,K_RIGHT,K_DOWN,K_LEFT]
     directions = []
@@ -538,149 +433,307 @@ while True:
             player.rect.right = screenrect.left+(r.TILESIZE*2)
             directions.append(K_RIGHT)
         player.updatepos()
-    
-    if not currentroom in exploredlist:
-        exploredlist.append(currentroom)
-        
-    if not roomdict[currentroom].completed and not inencounter:
-        doorprogress = 0
-        inencounter = True
-        for enemy in roomdict[currentroom].enemies:
-            e.entities.add(e.Enemy(vector(enemy[1])*r.TILESIZE,enemy[0]))
+    return directions
+def resizemenu(pixelperfect,screensurf,mousepos2,menu,scale):
+    screenscale = (min(screen.get_width(),screen.get_height())/GAMESIZE[0])
+    if pixelperfect:
+        screensurf = getscreensurf(screen,scale)
+        mousepos2 = (vector(pygame.mouse.get_pos()))/scale
     else:
-        inencounter = False
-        
-        
-    if e.entities.enemylist == []:
-        if not roomdict[currentroom].completed:
-            roomdict[currentroom].completed = True
-        inencounter = False
-        if not inencounter and dooranimtimer.update():
-            dooranimtimer.reset()
-            doorprogress -= 1
-            
-            
+        screensurf = getscreensurf(screen,scale)
+        mousepos2 = (vector(pygame.mouse.get_pos()))/scale
+    menu.reposition(screensurf)
+    return pixelperfect,screensurf,mousepos2,menu,scale
+#the file to which a current playthrough will be saved to
+PICKLEFILE = "run.dat"
+
+#initialize pygame
+pygame.init()
+
+screenlength = r.TILESIZE*r.TILENUM
+GAMESIZE = (screenlength,screenlength)
+fullscreen = True
+pixelperfect = True
+
+screen = pygame.display.set_mode((screenlength,screenlength),pygame.RESIZABLE)
+fullscreensize = pygame.display.list_modes()[0]
+background = pygame.Surface(screen.get_rect().size)
+
+tree = m.generatetree(12)
+#starts the player at spawn, with no explored rooms
+currentroom = "A"
+exploredlist = []
+roomdict,specialdict = treestorooms(tree)
+
+keys = []
+
+clock = pygame.time.Clock()
+
+transition = Roomtransition()
+
+player = platformer.Player()
+gun = platformer.Gun(player.pos)
+
+minimap = Minimap()
+
+bordertiles,doortiles = getbordertilesanddoortiles()
+
+blitpos = (0,0)
+scale = 1
+
+menu = Menu(screen)
+
+state = "menu"
+
+gamesurf = pygame.Surface(GAMESIZE)
+initdisplay(menu,screen)
+
+inencounter = False
+
+temproom = currentroom
+
+dooranimtimer = Timer(5)
+doorprogress = 0
+
+gundir = "left"
+
+
+mousepos2 = (0,0)
+
+#pixelperfect,screensurf,mousepos2,menu,scale = resizemenu(pixelperfect,screensurf,mousepos2,menu,scale)
+
+scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
+tempscale = int(scale)
+dims = inttuple((vector(screen.get_size())/scale))
+toblitrect = pygame.Rect((0,0),dims)
+toblit = pygame.Surface(dims)
+toblit.fill((0,0,0))
+
+gameoffset = (0,0)
+screenoffset = (0,0)
+
+while True:
+    gamesurf = pygame.Surface(GAMESIZE)
+    scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
+    tempscale = int(scale)
+    mousepos = (vector(pygame.mouse.get_pos())-vector(screenoffset))
+    mousepos2 = (vector(pygame.mouse.get_pos())-vector(screenoffset))
+    if menu.getoptions()["pixel-perfect"]:
+        mousepos = mousepos/tempscale
+        mousepos2 = mousepos2/tempscale
     else:
-        if roomdict[currentroom].completed:
-            e.entities.clearenemies()
-        inencounter = True
-        if doorprogress != 4 and dooranimtimer.update():
-            dooranimtimer.reset()
-            doorprogress += 1
+        mousepos = mousepos/scale
+        mousepos2 = mousepos2/scale
+    mousepos = mousepos-vector(gameoffset)
+    #mousepos2 = mousepos2-vector(screenoffset)
+    """
+    try:
+        screenscale = (min(screen.get_width(),screen.get_height())/GAMESIZE[0])
+        if scale > 0:
+            if menu.getoptions()["pixel-perfect"]:
+                mousepos = (vector(pygame.mouse.get_pos())-vector(blitpos))/scale
+            else:
+                mousepos = (vector(pygame.mouse.get_pos())-vector(blitpos))/screenscale
+        gamesurf = pygame.Surface(GAMESIZE)
+    
+        if scale > 0: 
+            if menu.getoptions()["pixel-perfect"]:
+                mousepos2 = (vector(pygame.mouse.get_pos()))/scale
+            else:
+                mousepos2 = (vector(pygame.mouse.get_pos()))/screenscale
+    except:
+        pass
+    """
+
+        
+    for event in pygame.event.get():
+        #if there is any change in the window size (e.g. if the windowed screen is maximized)
+        if event.type == pygame.VIDEORESIZE:
+            menu.reposition(toblit)
+            initdisplay(menu,screen)
+            #pixelperfect,screensurf,mousepos2,menu,scale = resizemenu(pixelperfect,screensurf,mousepos2,menu,scale)
             
+        #if the player presses the exit button on the window, close the window and stop the script        
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            sys.exit()
+        if event.type == pygame.KEYDOWN:
+            keys.append(event.key)
+        if event.type == pygame.KEYUP:
+            try:
+                keys.remove(event.key)
+            except:
+                pass
     
     
-    transition.updatestart(exploredlist,e.entities,player,gamesurf,directions,roomdict,tree,currentroom)
-
-    temproom = currentroom
-    #get new map, reset explored list and set current room to spawn
-    if 32 in keys:
-        tree = m.generatetree(12)
-        currentroom = "A"
-        exploredlist = []
-        roomdict, specialdict = treestorooms(tree)
-        keys.remove(32)
-    if K_1 in keys:
-        saverun(tree,roomdict,currentroom,exploredlist)
-    if K_2 in keys:
-        tree,roomdict,currentroom,exploredlist = getrun()
-    if K_e in keys:
-        player.pos = mousepos
-        
-        player.velocity = [0,0]
-    if K_q in keys:
-        player.velocity = [0,-20]
-    if K_p in keys:
-        pixelperfect = not pixelperfect
-        blitpos,scale = initdisplay(gamesurf,screen,fullscreen)
-        keys.remove(K_p)
-    if K_c in keys:
-        e.entities.clearenemies()
-
-    #debug text
-    quick.print("space:reset")
-    quick.print("1:save")
-    quick.print("2:load")
-    quick.print("e:teleport to mouse")
-    quick.print("q:upwards velocity")
-    quick.print("p:pixelperfect")
-    quick.print("+:toggle fullscreen")
-    quick.print("c:clear enemies")
-        
-    #if add current room to explored rooms if it has not already been explored
-    
-    #draw black over the whole screen
     screen.fill((0,0,0))
     clock.tick(80)
-    #draw current room object to screen
-    currentroom = transition.updateanimate(gamesurf,roomdict,currentroom)
-    
-    if pygame.mouse.get_pressed()[0]:
-        if player.canshoot():
-            playerpos = vector(gun.pos)
-            angle = vector(0,0).angle_to(mousepos-playerpos)
-            e.entities.add(e.Projectile(playerpos,0,1,(0,0),angle,player.shotspeed))
+
+    if K_ESCAPE in keys:
+        pygame.quit()
+        sys.exit()
         
-    #if there is no transition animation, update sprites normally
-    if not transition.intransition():
-        tiles = roomdict[currentroom].tilelist+bordertiles
-        if inencounter:
-            tiles += doortiles
-        roomdict[currentroom].updatedecor(gamesurf)
-        if doorprogress != 0:
-            for num in range(0,((doorprogress-1)*4)+1,4):
-                for num2 in range(4):
-                    doortiles[num+num2].update(gamesurf)
+    if state == "game":
+        if not currentroom in exploredlist:
+            exploredlist.append(currentroom)
+            
+        if not roomdict[currentroom].completed and not inencounter:
+            doorprogress = 0
+            inencounter = True
+            for enemy in roomdict[currentroom].enemies:
+                e.entities.add(e.Enemy(vector(enemy[1])*r.TILESIZE,enemy[0]))
+        else:
+            inencounter = False
+            
+            
+        if e.entities.enemylist == []:
+            if not roomdict[currentroom].completed:
+                roomdict[currentroom].completed = True
+            inencounter = False
+            if not inencounter and dooranimtimer.update():
+                dooranimtimer.reset()
+                doorprogress -= 1   
+        else:
+            if roomdict[currentroom].completed:
+                e.entities.clearenemies()
+            inencounter = True
+            if doorprogress != 4 and dooranimtimer.update():
+                dooranimtimer.reset()
+                doorprogress += 1
+                
         
-        roomdict[currentroom].update(gamesurf)
+        directions = moveplayertransition(gamesurf,transition,player)
+        transition.updatestart(exploredlist,e.entities,player,gamesurf,directions,roomdict,tree,currentroom)
+        currentroom = transition.updateanimate(gamesurf,roomdict,currentroom)
         
-        e.entities.update(tiles,player,gamesurf)
-        player.update(tiles,gamesurf,keys)
-        gun.update(gamesurf,player,mousepos)
-        
+        #get new map, reset explored list and set current room to spawn
+        if 32 in keys:
+            tree = m.generatetree(12)
+            currentroom = "A"
+            exploredlist = []
+            roomdict, specialdict = treestorooms(tree)
+            keys.remove(32)
+            
+            
+        if K_e in keys:
+            player.pos = mousepos
+            
+            player.velocity = [0,0]
+        if K_q in keys:
+            player.velocity = [0,-20]
+            
         
             
+        if K_c in keys:
+            e.entities.clearenemies()
+
+        
+        """
+        if K_p in keys:
+            now = datetime.now()
+            name = now.strftime("%Y%_m%_d%_H%M%S")
+            tooutput = pygame.transform.scale(screen,inttuple(vector(gamesurf.get_size())*2))
+            pygame.image.save(tooutput,"output/"+name+".png")
+            keys.remove(K_p)
+        """
+
+        #debug text
+        quick.print("space:reset")
+        quick.print("e:teleport to mouse")
+        quick.print("q:upwards velocity")
+        quick.print("c:clear enemies")   
+        
+        shooting = False
+        if pygame.mouse.get_pressed()[0]:
+            if player.canshoot():
+                shooting = True
+        
+        #if there is no transition animation, update sprites normally
+        if not transition.intransition():
+            tiles = roomdict[currentroom].tilelist+bordertiles
+            if inencounter:
+                tiles += doortiles
+            roomdict[currentroom].updatedecor(gamesurf)
+            if doorprogress != 0:
+                for num in range(0,((doorprogress-1)*4)+1,4):
+                    for num2 in range(4):
+                        doortiles[num+num2].update(gamesurf)
+            
+            roomdict[currentroom].update(gamesurf)
+            
+            e.entities.update(tiles,player,gamesurf)
+            player.update(gundir,tiles,gamesurf,keys)
+            gun.update(e.entities,shooting,gamesurf,player,mousepos)
+            gundir = gun.direction
+
+        scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
+        tempscale = int(scale)
+        newdims = inttuple(vector(toblit.get_size())*tempscale)
+        gamesurfrect = gamesurf.get_rect()
+        gamesurfrect.center = toblitrect.center
+        gameoffset = gamesurfrect.topleft
+        toblit.blit(gamesurf,gamesurfrect)
+        
+        #update minimap
+        
+        minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
+        #minimap.changealpha(player,mousepos)
+
+
+        
+    elif state == "menu":
+        menu.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
+        buttons = menu.getbuttonresults()
+        for key in buttons:
+            result = buttons[key]
+            
+            if result:
+                if key == "apply":
+                    initdisplay(menu,screen)
+                    menu.reposition(toblit)
+                if key == "exit":
+                    pygame.quit()
+                    sys.exit()
+                if key == "newgame":
+                    state = "game"
+                if key == "savedgame":
+                    tree,roomdict,currentroom,exploredlist = getrun()
+                    state = "game"
+                
     
-    #screen.blit(pygame.transform.scale2x(pygame.transform.scale(screen,inttuple(vector(screen.get_size())))),(0,0))
     quick.print("fps:",int(clock.get_fps()))
-    quick.print("projectiles:",len(e.entities.projectilelist))
-    quick.print("playerdx:",round(player.deltax))
-
+    quick.update(toblit)
     
-    #screen.blit(pygame.transform.scale(screen,inttuple(vector(screen.get_size())*2)),(0,0))
-    if K_p in keys:
-        now = datetime.now()
-        name = now.strftime("%Y%_m%_d%_H%M%S")
-        tooutput = pygame.transform.scale(screen,inttuple(vector(gamesurf.get_size())*2))
-        pygame.image.save(tooutput,"output/"+name+".png")
-        keys.remove(K_p)
-
-    quick.update(gamesurf)
-    #update minimap
+    optionsdict = menu.getoptions()
     
-    minimap.update(specialdict,keys,gamesurf,tree,exploredlist,currentroom)
-    minimap.changealpha(player,mousepos)
-    #stretches the game to fit the screen, if pixel perfect mode is not being used
-    if not pixelperfect:
-        screenrect = screen.get_rect()
-        lengthsize = min(screen.get_width(),screen.get_height())
-        gamesurf = pygame.transform.scale(gamesurf,inttuple(vector(lengthsize,lengthsize)))
-        gamerect = gamesurf.get_rect()
-        gamerect.center = screenrect.center
-        blitpos = gamerect.topleft
-    #scales the screen up pixel perfectly,(so that each pixel is a square)
     
+    scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
+    tempscale = int(scale)
+    if scale < 1:
+        textgen.generatetext("window is too small",screen,"big",(1,1),(192,192,192))
     else:
-        if scale > 1:
-            gamesurf = pygame.transform.scale(gamesurf,inttuple(vector(gamesurf.get_size())*scale))
-            pass
-    screen.blit(gamesurf,blitpos)
+        
+
+        screenrect = screen.get_rect()
+        if menu.getoptions()["pixel-perfect"]:
+            newdims = inttuple(vector(toblit.get_size())*tempscale)
+            
+        else:
+            newdims = inttuple(vector(toblit.get_size())*scale)
+        toblit = pygame.transform.scale(toblit,newdims)
+        toblitrect = toblit.get_rect()
+        toblitrect.center = screenrect.center
+        screenoffset = toblitrect.topleft
+        screen.blit(toblit,toblitrect)
+        
     #update the screen
     pygame.display.flip()
-    
-    #if key is an input key, remove it so that it does not continually cause procedures to be run
-    for key in keys:
-        if key in keydirections:
-            keys.remove(key)
 
-    temproom = currentroom
+    
+    dims = inttuple((vector(screen.get_size())/scale))
+    toblitrect = pygame.Rect((0,0),dims)
+    toblit = pygame.Surface(dims)
+    toblit.fill((0,0,0))
+    
+
+    
