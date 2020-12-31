@@ -48,6 +48,10 @@ while True:
                 enemies = dictroom[key][key2][roomid]["enemies"]
             except:
                 enemies = []
+            try:
+                items = dictroom[key][key2][roomid]["items"]
+            except:
+                items = []
             
         else:
             finished = True
@@ -65,7 +69,10 @@ while True:
         
         if K_MINUS in keys:
             keys.remove(K_MINUS)
-            tileid -= min(tileid-1,1)
+            if mode[0] == "items":
+                tileid -= min(tileid,1)
+            else:
+                tileid -= min(tileid-1,1)
         elif K_EQUALS in keys:
             keys.remove(K_EQUALS)
             tileid += 1
@@ -131,6 +138,10 @@ while True:
                     enemies = dictroom[key][key2][roomid]["enemies"]
                 except:
                     enemies = []
+                try:
+                    items = dictroom[key][key2][roomid]["items"]
+                except:
+                    items = []
             
         
         #get the mouse position and the state of the LMB and RMB
@@ -138,6 +149,7 @@ while True:
         mousepressed1 = pygame.mouse.get_pressed()[0]
         mousepressed2 = pygame.mouse.get_pressed()[2]
         pos = vector(mousepos)//TILESIZE
+        itempos = (vector(mousepos)//(TILESIZE/2))*(TILESIZE/2)
         #if LMB is pressed, add a tile at position of mouse
         if mousepressed1:
             if mode[0] == "enemies":
@@ -146,6 +158,10 @@ while True:
             if mode[0] == "tiles":
                 if [tileid,list(pos)] not in tiles:
                     tiles.append([tileid,list(pos)])
+            if mode[0] == "items":
+                
+                if [tileid,list(itempos)] not in items:
+                    items.append([tileid,list(itempos)])
         #if RMB is pressed, remove a tile at position of mouse
         if mousepressed2:
             if mode[0] == "tiles":
@@ -164,6 +180,16 @@ while True:
                         toremove.append(enemy)
                 for enemy in toremove:
                     enemies.remove(enemy)
+                
+            if mode[0] == "items":
+                toremove = []
+                for item in items:
+                    pos = item[1]
+                    if pos == itempos:
+                        toremove.append(item)
+                for item in toremove:
+                    items.remove(item)
+               
 
        
         #draw room to screen and refresh it
@@ -179,6 +205,14 @@ while True:
             if enemy not in existing:
                 existing.append(enemy)
         enemies = existing
+
+        for item in items:
+            if item[0] == 0:
+                string = "rnditem"
+            else:
+                string = "item"+str(item[0])+"  "
+            numbersurf = changecolour(textgen.generatetext(string),(0,0,0),(255,30,10))
+            screen.blit(numbersurf,vector(item[1]))
         
         quick.update(screen)
         pygame.display.flip()
@@ -191,8 +225,7 @@ while True:
         tilerect = r.Tile(tile[1],tile[0]).rect
         if not tilerect.colliderect(screenrect):
             newtilelist.append(tile)
-            
-    room = {"tiles":tiles,"enemies":enemies}
+    room = {"tiles":tiles,"enemies":enemies,"items":items}
     if new:
         try:
             dictroom[key][key2].append(room)

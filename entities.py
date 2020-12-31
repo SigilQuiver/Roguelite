@@ -154,6 +154,7 @@ PROJECTILESURFACES.append(spritesheettolist(pygame.image.load("sprites/bubble.pn
 class Projectile(Entity):
     def __init__(self,pos=(0,0),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0):
         Entity.__init__(self,pos,ident,velocity,rotation,speed)
+        self.damage = damage
         self.pierce = 5
         self.friendly=True
         self.spectral=False
@@ -170,7 +171,6 @@ class Projectile(Entity):
     def initid(self):
         if self.id == 1:
             self.friendly=True
-            self.damage = 2
         if self.id == 2:
             self.images2 = list(self.images)
             self.friendly=False

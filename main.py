@@ -11,6 +11,7 @@ from random import *
 import map1 as m
 import room1 as r
 import entities as e
+import items as i
 import platformer
 
 from menu import *
@@ -104,7 +105,7 @@ def assignspecialrooms(tree):
     return specialdict
 
 #returns a dictionary with room objects for each node in the tree
-def treestorooms(tree):
+def treestorooms(tree,items,newrun=False):
     roomdict = {}
     rooms = r.getrooms()
     stage = "stage1"
@@ -126,6 +127,9 @@ def treestorooms(tree):
         
         room["tiles"] = tiles
         roomdict[key] = r.Room(room)
+        if "items" in room.keys() and newrun:
+            for item in room["items"]:
+                items.add(key,item[1])
     #get the nodes where special rooms should be added
     specialdict = assignspecialrooms(tree)
     
@@ -137,17 +141,24 @@ def treestorooms(tree):
         tiles = processroom(tiles,connected)
         
         room["tiles"] = tiles
+        
+        if "items" in room.keys() and newrun:
+            for item in room["items"]:
+                items.add(roomkey,item[1])
+                
         roomdict[roomkey] = r.Room(room)
     
-    return roomdict,specialdict
+    return roomdict,specialdict,items
 
 #saves the state of the current map into a dat file
-def saverun(tree,roomdict,currentroom,exploredlist):
+def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items):
     file = open(PICKLEFILE,"wb")
     rundict = {"tree":tree,
                "roomdict":roomdict,
                "currentroom":currentroom,
-               "exploredlist":exploredlist}
+               "exploredlist":exploredlist,
+               "specialdict":specialdict,
+               "items":items}
     pickle.dump(rundict,file)
     file.close()
 
@@ -159,8 +170,10 @@ def getrun():
     roomdict = rundict["roomdict"]
     currentroom = rundict["currentroom"]
     exploredlist = rundict["exploredlist"]
+    specialdict = rundict["specialdict"]
+    items = rundict["items"]
     file.close()
-    return tree,roomdict,currentroom,exploredlist                
+    return tree,roomdict,currentroom,exploredlist,specialdict,items           
 
 #class that allows the smooth transition between rooms
 class Roomtransition:
@@ -358,10 +371,9 @@ def initdisplay(menu,screen,windowedswitch=False):
         screensize = optiondict["fullscreen resolution"]
         screen = pygame.display.set_mode(screensize,pygame.FULLSCREEN)
     else:
-        if windowedswitch:
-            screensize = (500,500)
-        else:
-            screensize = screen.get_size()
+        screensize = screen.get_size()
+        if screensize[0]>=pygame.display.list_modes()[0][0] and screensize[1]>=pygame.display.list_modes()[0][1]:
+            screensize = (pygame.display.list_modes()[0][0]-200,pygame.display.list_modes()[0][1]-200)
         screen = pygame.display.set_mode(screensize,pygame.RESIZABLE)
     return screen
 
@@ -459,11 +471,16 @@ screen = pygame.display.set_mode((screenlength,screenlength),pygame.RESIZABLE)
 fullscreensize = pygame.display.list_modes()[0]
 background = pygame.Surface(screen.get_rect().size)
 
-tree = m.generatetree(12)
+ROOMNUM = 12
+tree = m.generatetree(ROOMNUM)
 #starts the player at spawn, with no explored rooms
 currentroom = "A"
 exploredlist = []
-roomdict,specialdict = treestorooms(tree)
+
+items = i.Items()
+#items.add("A",(90,90))
+
+roomdict,specialdict,items = treestorooms(tree,items,True)
 
 keys = []
 
@@ -482,6 +499,7 @@ blitpos = (0,0)
 scale = 1
 
 menu = Menu(screen)
+gamemenu = Gamemenu(screen)
 
 state = "menu"
 
@@ -496,6 +514,7 @@ dooranimtimer = Timer(5)
 doorprogress = 0
 
 gundir = "left"
+
 
 
 mousepos2 = (0,0)
@@ -518,43 +537,28 @@ while True:
     tempscale = int(scale)
     mousepos = (vector(pygame.mouse.get_pos())-vector(screenoffset))
     mousepos2 = (vector(pygame.mouse.get_pos())-vector(screenoffset))
-    if menu.getoptions()["pixel-perfect"]:
-        mousepos = mousepos/tempscale
-        mousepos2 = mousepos2/tempscale
-    else:
-        mousepos = mousepos/scale
-        mousepos2 = mousepos2/scale
+    if scale > 1:
+        if menu.getoptions()["pixel-perfect"]:
+            mousepos = mousepos/tempscale
+            mousepos2 = mousepos2/tempscale
+        else:
+            mousepos = mousepos/scale
+            mousepos2 = mousepos2/scale
     mousepos = mousepos-vector(gameoffset)
-    #mousepos2 = mousepos2-vector(screenoffset)
-    """
-    try:
-        screenscale = (min(screen.get_width(),screen.get_height())/GAMESIZE[0])
-        if scale > 0:
-            if menu.getoptions()["pixel-perfect"]:
-                mousepos = (vector(pygame.mouse.get_pos())-vector(blitpos))/scale
-            else:
-                mousepos = (vector(pygame.mouse.get_pos())-vector(blitpos))/screenscale
-        gamesurf = pygame.Surface(GAMESIZE)
-    
-        if scale > 0: 
-            if menu.getoptions()["pixel-perfect"]:
-                mousepos2 = (vector(pygame.mouse.get_pos()))/scale
-            else:
-                mousepos2 = (vector(pygame.mouse.get_pos()))/screenscale
-    except:
-        pass
-    """
-
         
     for event in pygame.event.get():
         #if there is any change in the window size (e.g. if the windowed screen is maximized)
         if event.type == pygame.VIDEORESIZE:
-            menu.reposition(toblit)
-            initdisplay(menu,screen)
+            if state == "menu":
+                initdisplay(menu,screen)
+            elif state == "gamemenu" or state == "game":
+                initdisplay(gamemenu,screen)
             #pixelperfect,screensurf,mousepos2,menu,scale = resizemenu(pixelperfect,screensurf,mousepos2,menu,scale)
             
         #if the player presses the exit button on the window, close the window and stop the script        
         if event.type == pygame.QUIT:
+            if state == "game" or state == "gamemenu":
+                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
             pygame.quit()
             sys.exit()
         if event.type == pygame.KEYDOWN:
@@ -570,8 +574,16 @@ while True:
     clock.tick(80)
 
     if K_ESCAPE in keys:
-        pygame.quit()
-        sys.exit()
+        keys.remove(K_ESCAPE)
+        menu.__init__(toblit)
+        gamemenu.__init__(toblit)
+        if state == "menu":
+            pygame.quit()
+            sys.exit()
+        elif state == "gamemenu":
+            state = "game"
+        elif state == "game":
+            state = "gamemenu"
         
     if state == "game":
         if not currentroom in exploredlist:
@@ -611,7 +623,7 @@ while True:
             tree = m.generatetree(12)
             currentroom = "A"
             exploredlist = []
-            roomdict, specialdict = treestorooms(tree)
+            roomdict, specialdict,items = treestorooms(tree,items)
             keys.remove(32)
             
             
@@ -642,14 +654,16 @@ while True:
         quick.print("e:teleport to mouse")
         quick.print("q:upwards velocity")
         quick.print("c:clear enemies")   
-        
+        """
         shooting = False
         if pygame.mouse.get_pressed()[0]:
             if player.canshoot():
                 shooting = True
+        """
         
         #if there is no transition animation, update sprites normally
         if not transition.intransition():
+            
             tiles = roomdict[currentroom].tilelist+bordertiles
             if inencounter:
                 tiles += doortiles
@@ -662,8 +676,12 @@ while True:
             roomdict[currentroom].update(gamesurf)
             
             e.entities.update(tiles,player,gamesurf)
+            items.update(gamesurf,player,e.entities,currentroom)
+            if items.changestats:
+                player.changestats(items)
+                print(player.dmg)
             player.update(gundir,tiles,gamesurf,keys)
-            gun.update(e.entities,shooting,gamesurf,player,mousepos)
+            gun.update(e.entities,gamesurf,player,mousepos)
             gundir = gun.direction
 
         scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
@@ -679,8 +697,27 @@ while True:
         minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
         #minimap.changealpha(player,mousepos)
 
-
-        
+    elif state == "gamemenu":
+        gamemenu.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
+        buttons = gamemenu.getbuttonresults()
+        for key in buttons:
+            result = buttons[key]
+            
+            if result:
+                if key == "return":
+                    state = "game"
+                if key == "apply":
+                    initdisplay(gamemenu,screen)
+                if key == "menu":
+                    menu.__init__(toblit)
+                    state = "menu"
+                    saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
+                if key == "save":
+                    saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
+                if key == "exit":
+                    saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
+                    pygame.quit()
+                    sys.exit()
     elif state == "menu":
         menu.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
         buttons = menu.getbuttonresults()
@@ -695,13 +732,27 @@ while True:
                     pygame.quit()
                     sys.exit()
                 if key == "newgame":
+                    items.reset()
+                    items.resetcollection()
+                    tree = m.generatetree(ROOMNUM)
+                    currentroom = "A"
+                    exploredlist = []
+                    roomdict,specialdict,items = treestorooms(tree,items,True)
+                    transition = Roomtransition()
+                    player = platformer.Player()
+                    gun = platformer.Gun(player.pos)
+                    
                     state = "game"
                 if key == "savedgame":
-                    tree,roomdict,currentroom,exploredlist = getrun()
+                    items.reset()
+                    gamemenu.reposition(toblit)
+                    tree,roomdict,currentroom,exploredlist,specialdict,items = getrun()
                     state = "game"
                 
     
     quick.print("fps:",int(clock.get_fps()))
+    quick.print(str(items.itemlist))
+    quick.print(items.collected)
     quick.update(toblit)
     
     optionsdict = menu.getoptions()
@@ -710,7 +761,15 @@ while True:
     scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
     tempscale = int(scale)
     if scale < 1:
-        textgen.generatetext("window is too small",screen,"big",(1,1),(192,192,192))
+        string = "window is too small"
+        if screen.get_width()//GAMESIZE[0] == 0:
+            string+= "   "
+            string+= "increase the width of window"
+        if screen.get_height()//GAMESIZE[0] == 0:
+            string+= "   "
+            string+= "increase the height of window"
+            
+        textgen.generatetext(string,screen,"big",(1,1),(192,192,192))
     else:
         
 

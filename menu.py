@@ -284,29 +284,90 @@ class Menu:
         config.write(settings)
         settings.close()
         
-    def getfromfile(self):
-        try:
-            config = configparser.ConfigParser()
-            config.read("settings.ini")
-            resultdict = {}
-            for section in config.sections():
-                for key in config[section]:
-                    value = str(config[section][key])
-                    if value[0] == "(":
-                        num1,num2 = value[1:-1].split(",")
-                        value = (int(num1),int(num2))
-                    if value in ["True","False"]:
-                        value = config.getboolean(section,key)
-                    resultdict[key] = value
-                    
-            for key in resultdict:
-                self.widgets[key].settype(resultdict[key])
+    def getfromfile(self,setwidgets = True):
+        
+        extra = {}
+        config = configparser.ConfigParser()
+        config.read("settings.ini")
+        resultdict = {}
+        resultdictsection = {}
+        for section in config.sections():
+            for key in config[section]:
+                value = str(config[section][key])
+                if value[0] == "(":
+                    num1,num2 = value[1:-1].split(",")
+                    value = (int(num1),int(num2))
+                if value in ["True","False"]:
+                    value = config.getboolean(section,key)
+                resultdictsection[key] = section
+                resultdict[key] = value
+                
+        for key in resultdict:
+            if key not in self.widgets:
+                extra[key] = [resultdict[key],resultdictsection[key]]
+            else:
+                if setwidgets:
+                    self.widgets[key].settype(resultdict[key])
+        return extra
+        
 
-        except:
-            self.writetofile()
+class Gamemenu(Menu):
+    def __init__(self,screen,screenmiddle=None):
+        Menu.__init__(self,screen,screenmiddle)
+        fullscreenresolutions = []
+        for tup in pygame.display.list_modes():
+            if tup not in fullscreenresolutions:
+                fullscreenresolutions.append(tup)
+                
+        self.states = {
+            "return":"return",
+            "see unlocks":None,
+            "options":{
+                "fullscreen":["toggle",[True,False]],
+                "fullscreen resolution":["toggle",fullscreenresolutions],
+                "pixel-perfect":["toggle",[True,False]],
+                "visual effects cull":["toggle",[True,False]],
+                "apply":"apply",
+                "back|3":"back"
+                },
+            "save run":"save",
+            "exit to menu":"menu",
+            "exit game":"exit"
+            }
+        self.widgets = {}
+        self.returnwidgets(self.states,screen,screenmiddle)
+        self.getfromfile()
+    def writetofile(self):
+        extras = self.getfromfile(False)
+        resultdict = self.getoptions()
+        config = configparser.ConfigParser()
+        config["play"] = {}
+        config["options"] = {}
+        inplay = []
+        for lst in extras:
+            section = lst[1]
+            result = lst[0]
+            if section not in config.keys():
+                config[section] = {}
+            
+        
+        inoptions = ["fullscreen","fullscreen resolution","pixel-perfect","visual effects cull"]
+        for key in inplay:
+            config["play"][key] = str(resultdict[key])
+        for key in inoptions:
+            config["options"][key] = str(resultdict[key])
+        settings = open('settings.ini', 'w')
+        for key in extras:
+            
+            section = extras[key][1]
+            result = extras[key][0]
+            if section == "play" and result not in inplay:
+                config["play"][key] = str(result)
+        config.write(settings)
+        settings.close()
 
         
-        
+
     
                 
             

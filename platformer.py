@@ -64,11 +64,13 @@ class Player:
         
         self.rect = self.image.get_rect()
         self.rect.center += vector(r.TILESIZE,r.TILESIZE)
+
+        self.initstats()
         
         self.velocity = [0.1,0.1]
         self.gravity = GRAVITY
         self.maxy = MAXY
-        self.speed = 2 
+        
         self.jumpheight = 7
         self.minheight = 1
 
@@ -86,12 +88,7 @@ class Player:
         self.pos = list(self.rect.center)
         self.deltax = 0
 
-        self.shotspeed = 3
-        self.shootspeed = 20
-        self.shoottimer = Timer(self.shootspeed)
-
-        self.maxhp = 6
-        self.hp = 6
+        
 
         self.invunerable = False
         self.invuntimer = Timer(200)
@@ -99,7 +96,14 @@ class Player:
         self.invunflashtimer = Timer(25)
 
         self.hastriedshot = False
-        
+    def initstats(self):
+        self.shotspeed = 3
+        self.shootspeed = 20
+        self.shoottimer = Timer(self.shootspeed)
+        self.maxhp = 6
+        self.hp = 6
+        self.speed = 2
+        self.dmg = 1
     def damage(self):
         if not self.invunerable:
             self.hp -=1
@@ -257,6 +261,18 @@ class Player:
             surface.blit(image,self.rect)
     def updatepos(self):
         self.pos = list(self.rect.center)
+    def changestats(self,items):
+        self.initstats()
+        statdict = items.getstats()
+        self.dmg += statdict["damage"]
+        self.dmg = self.dmg*statdict["damage_mult"]
+        self.speed += statdict["speed"]
+        self.shotspeed += statdict["shot_speed"]
+        self.shootspeed -= statdict["shot_rate"]
+        self.maxhp += statdict["max_hp"]
+        self.hp = min(self.maxhp,statdict["actual_hp"]+self.hp)
+        self.shoottimer = Timer(self.shootspeed)
+        
 
 images1 = spritesheettolist(pygame.image.load("sprites/gunud.png"),2,False,False)
 images2 = spritesheettolist(pygame.image.load("sprites/gunlr.png"),2,False,False)
@@ -268,7 +284,7 @@ class Gun:
         self.pos = playerpos
         self.recoil = 0
         self.recoilx = 0
-    def update(self,entities,shooting,screen,player,mousepos):
+    def update(self,entities,screen,player,mousepos):
         playerpos = inttuple(player.pos)
         vectorto = vector(mousepos) - vector(playerpos)
         angle = vector(0,0).angle_to(vectorto)
@@ -277,7 +293,12 @@ class Gun:
         aimpos += vector(playerpos)
         previouspos = vector(self.pos)
         self.pos = vector(self.pos).lerp(aimpos,0.5)
-
+        
+        shooting = False
+        if pygame.mouse.get_pressed()[0]:
+            if player.canshoot():
+                shooting = True
+                
         if shooting:
             self.recoil = 27
         else:
@@ -304,13 +325,13 @@ class Gun:
                 playerpos = vector(self.pos)
                 angle = vector(0,0).angle_to(mousepos-playerpos)
                 bulletpos = playerpos+vector(0,-gunoffset).rotate(angle)
-                e.entities.add(e.Projectile(bulletpos,0,1,(0,0),angle,player.shotspeed))
+                e.entities.add(e.Projectile(bulletpos,player.dmg,1,(0,0),angle,player.shotspeed))
         else:
             if shooting:
                 playerpos = vector(self.pos)
                 angle = vector(0,0).angle_to(mousepos-playerpos)
                 bulletpos = playerpos+vector(0,gunoffset).rotate(angle)
-                e.entities.add(e.Projectile(bulletpos,0,1,(0,0),angle,player.shotspeed))
+                e.entities.add(e.Projectile(bulletpos,player.dmg,1,(0,0),angle,player.shotspeed))
             
         self.image = pygame.transform.flip(self.image,False,True)
         self.image = pygame.transform.rotate(self.image,-angle+recoiladd)
@@ -322,6 +343,7 @@ class Gun:
         self.rect = self.image.get_rect()
         self.rect.center = self.pos
         screen.blit(imgoutline,self.rect)
+    
 
         
             
