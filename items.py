@@ -1,12 +1,13 @@
 import pygame
 from pygame.locals import *
 
-import sys,os,time
+import sys,os,time,math
 from random import *
 from vector import *
 from surfacemethods import *
 import room1 as r
 import entities as e
+import text as t
 #stat types:
 #damage
 #damage multiplier
@@ -16,7 +17,7 @@ import entities as e
 #max health
 #actual health
 MINID = 1
-MAXID = 1
+MAXID = 3
 
 SURFACES = {}
 for filename in os.listdir("sprites/items"):
@@ -68,7 +69,64 @@ class Items:
             self.statdict["max_hp"] += item.max_hp
             self.statdict["actual_hp"] += item.actual_hp
         return self.statdict
+    
+class Itemview:
+    def __init__(self):
+        self.scroll = 0
+    def update(self,screen,rect,items,mousepos,scroll):
+        rectdims = rect.size
+        itemsurflist = []
+        surf = pygame.Surface(rectdims)
+        surf.fill((0,0,0))
+        mouseitemid = None
+        if len(items.collected) != 0:
+            for item in items.collected:
+                itemsurflist.append(str(item.id))
+            itemdim = SURFACES["1"].get_size()[0]
             
+            width = rectdims[0]/itemdim
+            width = math.ceil(width)
+            rows = len(itemsurflist)/width
+            rows = math.ceil(rows)
+            #print(width,rows)
+
+            
+            
+            for y in range(rows):
+                y = y*itemdim
+                for x in range(width):
+                    x = x*itemdim
+                    
+                    pos = len(itemsurflist)-1
+                    surf.blit(SURFACES[itemsurflist[pos]],(x,y))
+                    mousecheckrect = pygame.Rect(vector(x,y)+vector(rect.topleft),(itemdim,itemdim))
+                    if mousecheckrect.collidepoint(mousepos):
+                        mouseitemid = int(itemsurflist[pos])
+                    itemsurflist.pop(pos)
+                    if len(itemsurflist) == 0:
+                        break
+                if len(itemsurflist) == 0:
+                        break
+            surf.scroll(0,int(scroll))
+            #self.scroll -= 0.03
+        screen.blit(surf,rect)
+
+        if mouseitemid != None:
+            tempitem = Item(mouseitemid)
+            descriptionsurf = pygame.Surface((70,70))
+            descriptionsurf.fill((0,0,0))
+            string = tempitem.name
+            string += "#"
+            string += '"'+tempitem.quote+'"#'
+            string += tempitem.description
+            descriptionsurf = t.textgen.generatetext(string,descriptionsurf,"small",(1,1),(192,192,192))
+            descrect = descriptionsurf.get_rect()
+            descrect.bottomright = mousepos
+            if descrect.left <0:
+                descrect.left = 0
+            screen.blit(descriptionsurf,descrect)
+        
+        
             
 class Item:
     def __init__(self,ident=None,pos=(0,0)):
@@ -101,7 +159,21 @@ class Item:
             self.name = "sword"
             self.quote = "how does this work with a gun??"
             self.description = "damage up"
-            self.damage = 100
+            self.damage = 3
+        if self.id == 2:
+            self.name = "speedrun stopwatch"
+            self.quote = "tryhard sweat smh"
+            self.description = "shot rate, shot speed and speed up"
+            self.speed = 1
+            self.shot_rate = 1
+            self.shot_speed = 2
+        if self.id == 3:
+            self.name = "soldier's stim"
+            self.quote = "silly royal blood"
+            self.description = "damage and shot rate up"
+            self.damage = 1
+            self.shot_rate = 3
+        
     def update(self,screen,player,entities):
         if not self.finishanimation:
             image = SURFACES[str(self.id)]

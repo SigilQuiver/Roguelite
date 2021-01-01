@@ -111,17 +111,55 @@ class Textgenerator:
                 surface = pygame.Surface((surfwidth,self.tilesizebig["A"][1]+1))
             surface.fill((255,255,255))
             surface.set_colorkey((255,255,255))
+        else:
+            surfwidth = surface.get_width()
+            indents = []
+            word = []
+            xpointer = 0
+
+            indexnum = 0
+            for char in text:
+                indexnum += 1
+                if texttype == "small":
+                    if char not in self.smallalpha+[" ","#"]:
+                        char = "?"
+                    if char not in [" ","#"]:
+                        xpointer += self.tilesizesmall[char][0]+1
+                        word.append(char)
+                        if xpointer > surfwidth:
+                            xpointer = 0
+                            for char2 in word:
+                                xpointer += self.tilesizesmall[char][0]+1
+                            if not len(word) > surfwidth:
+                                indents.append(indexnum-len(word))
+                    if char in [" ","#"]:
+                        word = []
+                        if char == " ":
+                            xpointer += self.tilesizesmall["A"][0]+1
+                        if char == "#":
+                            xpointer = 0
+            indexnum = 0
+            textlist = list(text)
+            for indent in indents:
+                textlist.insert(indent+indexnum,"#")
+                indexnum += 1
+            text = "".join(textlist)
+                
+            print(indents)
+                        
+                        
+
+        
         surfwidth = surface.get_width()
         surfheight = surface.get_height()
-        
         xpointer = pos[0]
         ypointer = pos[1]
         for char in text:
             if texttype == "small":
                 ytravel = self.tilesizesmall["A"][1]+1
-                if char not in self.smallalpha+[" "]:
+                if char not in self.smallalpha+[" ","#"]:
                     char = "?"
-                if char != " ":
+                if char not in [" ","#"]:
                     tile = self.tiledictsmall[char]
                     previousposition = (xpointer,ypointer)
                     xpointer += self.tilesizesmall[char][0]+1
@@ -133,6 +171,10 @@ class Textgenerator:
                     if colour != (0,0,0):
                         tile = changecolour(tile,(0,0,0),colour)
                     surface.blit(tile,previousposition)
+                elif char == "#":
+                    xpointer = 0
+                    ypointer += ytravel
+                    previousposition = (xpointer,ypointer)
                 else:
                     xpointer += self.tilesizesmall["A"][0]+1
             else:

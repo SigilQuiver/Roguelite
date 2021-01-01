@@ -15,7 +15,8 @@ screen = pygame.display.set_mode((600,600),pygame.RESIZABLE)
 from surfacemethods import *
 
 import configparser
-    
+
+PYTHONBREAKPOINT=1
 
 class Quickprint:
     def __init__(self):

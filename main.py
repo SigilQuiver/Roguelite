@@ -478,6 +478,7 @@ currentroom = "A"
 exploredlist = []
 
 items = i.Items()
+itemui = i.Itemview()
 #items.add("A",(90,90))
 
 roomdict,specialdict,items = treestorooms(tree,items,True)
@@ -530,6 +531,7 @@ toblit.fill((0,0,0))
 
 gameoffset = (0,0)
 screenoffset = (0,0)
+
 
 while True:
     gamesurf = pygame.Surface(GAMESIZE)
@@ -679,7 +681,6 @@ while True:
             items.update(gamesurf,player,e.entities,currentroom)
             if items.changestats:
                 player.changestats(items)
-                print(player.dmg)
             player.update(gundir,tiles,gamesurf,keys)
             gun.update(e.entities,gamesurf,player,mousepos)
             gundir = gun.direction
@@ -690,10 +691,15 @@ while True:
         gamesurfrect = gamesurf.get_rect()
         gamesurfrect.center = toblitrect.center
         gameoffset = gamesurfrect.topleft
+
+        
+        
         toblit.blit(gamesurf,gamesurfrect)
         
         #update minimap
-        
+        itemrect = pygame.Rect((0,0),(22*4,22*8))
+        itemrect.bottomleft = toblitrect.bottomleft
+        itemui.update(toblit,itemrect,items,mousepos2,False)
         minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
         #minimap.changealpha(player,mousepos)
 
@@ -734,6 +740,8 @@ while True:
                 if key == "newgame":
                     items.reset()
                     items.resetcollection()
+                    for x in range(22,22*10,22):
+                        items.add("A",(x,22*4))
                     tree = m.generatetree(ROOMNUM)
                     currentroom = "A"
                     exploredlist = []
@@ -747,12 +755,13 @@ while True:
                     items.reset()
                     gamemenu.reposition(toblit)
                     tree,roomdict,currentroom,exploredlist,specialdict,items = getrun()
+                    player.changestats(items)
                     state = "game"
                 
     
     quick.print("fps:",int(clock.get_fps()))
-    quick.print(str(items.itemlist))
-    quick.print(items.collected)
+    #quick.print(str(items.itemlist))
+    #quick.print(items.collected)
     quick.update(toblit)
     
     optionsdict = menu.getoptions()
