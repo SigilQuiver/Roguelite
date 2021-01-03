@@ -24,20 +24,26 @@ import pickle
 def processroom(room,directions):
     #get the furthest grid coordinates at the edge of the screen
     last = r.TILENUM-1
-    roomtemp = []
-    for tile in room:
-        #tile contains a list of both the coordinates (as a list) and the tile id of that tile, i only want the coordinates to be in roomtemp
-        roomtemp.append(tuple(tile[1]))
+    tiles = room
 
+    tiletype = 1
     #creates a border around the whole room
     for x in range(0,last+1,last):
         for y in range(last+1):
-            if (x,y) not in roomtemp:
-                roomtemp.append((x,y))
+            occurances = 0
+            for tile in tiles:
+                if tile[1] == (x,y):
+                    occurances =1
+            if occurances == 0:
+                tiles.append((tiletype,(x,y)))
     for y in range(0,last+1,last):
         for x in range(last+1):
-            if (x,y) not in roomtemp:
-                roomtemp.append((x,y))
+            occurances = 0
+            for tile in tiles:
+                if tile[1] == (x,y):
+                    occurances =1
+            if occurances == 0:
+                tiles.append((tiletype,(x,y)))
     #get the middle position of the square game screen in units(for the grid of tiles)
     median = r.TILENUM//2
     median -= 1
@@ -50,26 +56,26 @@ def processroom(room,directions):
         if direction == "w":
             for x in range(-1,3):
                 coords = (0,median+x)
-                rejected.append(coords)
+                rejected.append((tiletype,(coords)))
         
         if direction == "e":
             for x in range(-1,3):
                 coords = (last,median+x)
-                rejected.append(coords)
+                rejected.append((tiletype,(coords)))
         
         if direction == "n":
             for x in range(-1,3):
                 coords = (median+x,0)
-                rejected.append(coords)
+                rejected.append((tiletype,(coords)))
         if direction == "s":
             for x in range(-1,3):
                 coords = (median+x,last)
-                rejected.append(coords)
+                rejected.append((tiletype,(coords)))
     #adds all tiles except the ones in the list "rejected" to a new list
     newroom = []
-    for coords in roomtemp:
-        if coords not in rejected:
-            newroom.append([1,coords])
+    for tile in tiles:
+        if tile not in rejected:
+            newroom.append(tile)
 
     #returns a list of unit coordinate positions
     return newroom
@@ -119,7 +125,7 @@ def treestorooms(tree,items,newrun=False):
         #if the room is the root
         else:
             #assign spawn room
-            room = rooms[stage]["spawn"][0]
+            room = rooms[stage]["spawn"][randint(0,len(rooms[stage]["spawn"])-1)]
         #room = room["tiles"]
         connected = m.getconnected(tree,key)
         tiles = room["tiles"]
@@ -333,9 +339,9 @@ class Minimap:
             surface.blit(self.surf,self.surfrect)
             #draw minimap onto the screen
             self.surfacerect = surface.get_rect()
-            self.surfacerect.topleft = pos
+            self.surfacerect.topright = screen.get_rect().topright
             surface.set_alpha(self.transparency)
-            screen.blit(surface,pos)
+            screen.blit(surface,self.surfacerect)
         else:
             #darken the screen and draw the enlarged map to the middle of the screen
             shade = pygame.Surface(screen.get_size())
@@ -360,7 +366,8 @@ class Minimap:
             if not self.transparency == 255:
                 self.transparency = lerp(self.transparency,255,slip)
         self.transparency = min(self.transparency,255)
-            
+
+
         
 
 #is used to toggle fullscreen and center the game to the middle of the screen
@@ -506,6 +513,8 @@ state = "menu"
 
 gamesurf = pygame.Surface(GAMESIZE)
 initdisplay(menu,screen)
+
+heart = Hearts()
 
 inencounter = False
 
@@ -675,7 +684,7 @@ while True:
                     for num2 in range(4):
                         doortiles[num+num2].update(gamesurf)
             
-            roomdict[currentroom].update(gamesurf)
+            quick.print(roomdict[currentroom].update(gamesurf,player,keys,inencounter,e.entities))
             
             e.entities.update(tiles,player,gamesurf)
             items.update(gamesurf,player,e.entities,currentroom)
@@ -701,6 +710,7 @@ while True:
         itemrect.bottomleft = toblitrect.bottomleft
         itemui.update(toblit,itemrect,items,mousepos2,False)
         minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
+        heart.update(toblit,player.hp,player.maxhp,(1,1))
         #minimap.changealpha(player,mousepos)
 
     elif state == "gamemenu":

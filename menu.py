@@ -16,8 +16,6 @@ from surfacemethods import *
 
 import configparser
 
-PYTHONBREAKPOINT=1
-
 class Quickprint:
     def __init__(self):
         self.printlist = []
@@ -367,7 +365,27 @@ class Gamemenu(Menu):
         config.write(settings)
         settings.close()
 
-        
+HEARTSURFACES = spritesheettolist(pygame.image.load("sprites/heart.png"),3,True)
+class Hearts:
+    def __init__(self):
+        pass
+    
+    def update(self,surf,hp,maxhp,pos=vector(0,0)):
+        xpointer = 0
+        xtravel = HEARTSURFACES[0].get_width()-1
+        for _ in range(maxhp):
+            blitpos = pos+vector(xpointer,0)
+            if maxhp>0:
+                if hp>0:
+                    if hp == 1:
+                        surf.blit(HEARTSURFACES[1],blitpos)
+                    else:
+                        surf.blit(HEARTSURFACES[0],blitpos)
+                else:
+                    surf.blit(HEARTSURFACES[2],blitpos)
+            xpointer +=xtravel
+            maxhp-=2
+            hp-=2
 
     
                 

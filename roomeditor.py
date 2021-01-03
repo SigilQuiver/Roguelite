@@ -58,9 +58,10 @@ while True:
     else:
         tiles = []
         enemies = []
+        items = []
     keys = []
     tileid = 1
-    mode = ["enemies","tiles","items"]
+    mode = ["enemies","tiles","items","door"]
     while not finished:
         quick.print("use q to switch between enemies,tiles and items")
         quick.print("mode:",mode[0])
@@ -76,6 +77,8 @@ while True:
         elif K_EQUALS in keys:
             keys.remove(K_EQUALS)
             tileid += 1
+        if mode[0] == "door":
+            tileid = "door"
         if K_q in keys:
             keys.remove(K_q)
             mode.append(mode.pop(0))
@@ -104,7 +107,7 @@ while True:
             finished = True
         if K_t in keys:
             tileid = int(input("enter tileid:"))
-        if new and len(dictroom[key][key2]) == 0:
+        if not new and len(dictroom[key][key2]) == 0:
             break
         if not new:
             if K_LEFT in keys:
@@ -155,7 +158,7 @@ while True:
             if mode[0] == "enemies":
                 if [tileid,list(pos)] not in tiles:
                     enemies.append([tileid,list(pos)])
-            if mode[0] == "tiles":
+            if mode[0] in ["tiles","door"]:
                 if [tileid,list(pos)] not in tiles:
                     tiles.append([tileid,list(pos)])
             if mode[0] == "items":
@@ -164,11 +167,11 @@ while True:
                     items.append([tileid,list(itempos)])
         #if RMB is pressed, remove a tile at position of mouse
         if mousepressed2:
-            if mode[0] == "tiles":
+            if mode[0] in ["tiles","door"]:
                 toremove = []
                 for tile in tiles:
-                    tilepos = tile[1]
-                    if tilepos == pos:
+                    #tilepos = tile[1]
+                    if tile == [tileid,list(pos)]:
                         toremove.append(tile)
                 for tile in toremove:
                     tiles.remove(tile)
@@ -194,7 +197,7 @@ while True:
        
         #draw room to screen and refresh it
         temproom = r.Room({"tiles":tiles})
-        temproom.update(screen)
+        temproom.update(screen,None,[],False)
         for enemy in enemies:
             string = "ene"+str(enemy[0])+"  "
             numbersurf = changecolour(textgen.generatetext(string),(0,0,0),(255,30,10))

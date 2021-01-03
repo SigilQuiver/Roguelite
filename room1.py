@@ -6,12 +6,16 @@ from vector import *
 import sys
 import os
 import json
+import text
+from surfacemethods import *
 pygame.init()
 screen = pygame.display.set_mode((500,500))
 
 TILESIZE = 22
 TILENUM = 16
 FILENAME = "rooms.json"
+
+import entities as e
 #function to get all the rooms as text representation from the file and store in a list
 def getrooms():
     #raise exception if file to read from cannot be found
@@ -87,28 +91,43 @@ class Room:
                     if randint(0,1)==1:
                         self.visualtiles.append(Tile(abovepos,"grasstiledecor1top"))
 
-                for key in placedict:
-                    contents = placedict[key]
-                    if contents[0] != True:
-                        if tiletype+key in keys:
-                            self.visualtiles.append(Tile(contents[1],tiletype+key))
+                
             if tileid == 2:
-                tiletype = "gatetile"
-            self.tilelist.append(Tile(tilepos,tiletype))
+                tiletype = "bricktile"
+                if not abovetile and tilepos[1]!=0:
+                    prob = randint(0,20)
+                    if prob == 1:
+                        self.visualtiles.append(Tile(abovepos,"bricktiledecor1top"))
+                    if prob in [2,3]:
+                        self.visualtiles.append(Tile(abovepos,"bricktiledecor2top"))
+                        
+            for key in placedict:
+                contents = placedict[key]
+                if contents[0] != True:
+                    if tiletype+key in keys:
+                        self.visualtiles.append(Tile(contents[1],tiletype+key))
+            if tileid == "door" or tiletype == "door":
+                self.tilelist.append(Door(tilepos,tiletype))
+            else:
+                self.tilelist.append(Tile(tilepos,tiletype))
                 
                     
                     
 
             
     #draws all the tiles in the room
-    def update(self,surf):
+    def update(self,surf,player=None,keys=[],inencounter=True,entities=None):
         """
         for tile in self.tilelist:
             tile.update(surf)
         """
+        toreturn = False
         for tile in self.tilelist:
-            tile.update(surf)
-
+            if tile.image == "door":
+                toreturn = tile.update(surf,player,keys,inencounter,entities)
+            else:
+                tile.update(surf)
+        return toreturn
     def updatedecor(self,surf):
         for tile in self.visualtiles:
             tile.update(surf)
@@ -151,7 +170,7 @@ def returnsprites(spritesheet,dictionary):
         
 #object for tiles
 spritesheet = pygame.image.load("sprites/rocktiles.png")
-SURFACES = {"grasstile":pygame.Rect(4,6,22,22),
+spritesheetdict = {"grasstile":pygame.Rect(4,6,22,22),
             "grasstiledecor1top":pygame.Rect(4,0,22,5),
             "grasstileleft":pygame.Rect(0,6,3,22),
             "grasstileright":pygame.Rect(27,6,3,22),
@@ -161,12 +180,25 @@ SURFACES = {"grasstile":pygame.Rect(4,6,22,22),
             "stonetileleft":pygame.Rect(27,29,1,22),
             "stonetilebottom":pygame.Rect(4,52,22,1)
             }
-SURFACES = returnsprites(spritesheet,SURFACES)
+SURFACES = returnsprites(spritesheet,spritesheetdict)
+
+spritesheet = pygame.image.load("sprites/stonetiles.png")
+spritesheetdict = {"bricktile":pygame.Rect(8,14,22,22),
+                   "bricktileleft":pygame.Rect(6,14,1,22),
+                   "bricktileright":pygame.Rect(31,14,1,22),
+                   "bricktiledecor1top":pygame.Rect(36,7,22,7),
+                   "bricktiledecor2top":pygame.Rect(57,10,22,4)
+                   }
+toadd = returnsprites(spritesheet,spritesheetdict)
+for key in toadd:
+    SURFACES[key] = toadd[key]
+        
+
 SURFACES["gatetile1"] = pygame.image.load("sprites/gatetile.png")
 SURFACES["gatetile1"].convert()
 SURFACES["gatetile2"] = pygame.transform.rotate(pygame.image.load("sprites/gatetile.png"),90)
 SURFACES["gatetile2"].convert()
-
+SURFACES["door"] = pygame.image.load("sprites/door.png")
 
 
 """
@@ -183,8 +215,8 @@ class Tile:
         #if no image is given, set it to a red square
         if tileid==None or tileid==1:
             self.image = "stonetile"
-        elif tileid == "gatetile" or tileid == 2:
-            self.image = "gatetile"
+        elif tileid == 2:
+            self.image = "bricktile"
         else:
             self.image=tileid
         #get the hitbox from the image
@@ -194,4 +226,43 @@ class Tile:
     #draws the tile
     def update(self,surf):
         surf.blit(SURFACES[self.image],self.rect)
+        
+class Door:
+    def __init__(self,bottompos,tileid=None):
+        self.image = "door"
+        self.rect = pygame.Rect((-1,-1),(1,1))
+        self.bottomrect = pygame.Rect((0,0),(22,22))
+        self.bottomrect.topleft = vector(bottompos)*TILESIZE
+        self.washidden = False
+
+    def update(self,surf,player,keys,inencounter,entities):
+        toreturn = False
+        if not inencounter:
+            if self.washidden and entities != None:
+                for _ in range(randint(5,10)):
+                    angle = randint(0,360)
+                    v1 = vector(15,0)
+                    v1.rotate_ip(angle)
+                    entities.add(e.Dust(vector(self.bottomrect.center)+v1,3,(0,0),angle,randint(2,3)))
+            self.washidden = False
+            
+            imagerect = SURFACES[self.image].get_rect()
+            imagerect.bottom = self.bottomrect.bottom
+            imagerect.left = self.bottomrect.left
+            surf.blit(SURFACES[self.image],imagerect)
+            if K_r in keys:
+                toreturn = True
+            if player != None:
+                if imagerect.colliderect(player.rect):
+                    textimage = text.textgen.generatetext("press R to go to the next stage",None,"small",(0,0),(192,192,192))
+                    textback = pygame.Surface(textimage.get_size())
+                    textback.blit(textimage,(0,0))
+                    textrect = textback.get_rect()
+                    textrect.centerx = imagerect.centerx
+                    textrect.bottom = imagerect.top+-5
+                    surf.blit(textback,textrect)
+                
+        else:
+            self.washidden = True
+        return toreturn
 
