@@ -67,7 +67,8 @@ while True:
         quick.print("mode:",mode[0])
         quick.print("use plus and minus to increase or decrease id")
         quick.print("id:",tileid)
-        
+        if tileid == "door" and not mode[0] == "door":
+            tileid = 1
         if K_MINUS in keys:
             keys.remove(K_MINUS)
             if mode[0] == "items":

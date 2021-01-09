@@ -6,7 +6,7 @@ from vector import *
 import sys
 import os
 import json
-import text
+from text import *
 from surfacemethods import *
 pygame.init()
 screen = pygame.display.set_mode((500,500))
@@ -100,12 +100,12 @@ class Room:
                         self.visualtiles.append(Tile(abovepos,"bricktiledecor1top"))
                     if prob in [2,3]:
                         self.visualtiles.append(Tile(abovepos,"bricktiledecor2top"))
-                        
-            for key in placedict:
-                contents = placedict[key]
-                if contents[0] != True:
-                    if tiletype+key in keys:
-                        self.visualtiles.append(Tile(contents[1],tiletype+key))
+            if type(tileid)==type(int(1)):
+                for key in placedict:
+                    contents = placedict[key]
+                    if contents[0] != True:
+                        if tiletype+key in keys:
+                            self.visualtiles.append(Tile(contents[1],tiletype+key))
             if tileid == "door" or tiletype == "door":
                 self.tilelist.append(Door(tilepos,tiletype))
             else:
@@ -235,9 +235,9 @@ class Door:
         self.bottomrect.topleft = vector(bottompos)*TILESIZE
         self.washidden = False
 
-    def update(self,surf,player,keys,inencounter,entities):
+    def update(self,surf,player,keys,completed,entities):
         toreturn = False
-        if not inencounter:
+        if completed:
             if self.washidden and entities != None:
                 for _ in range(randint(5,10)):
                     angle = randint(0,360)
@@ -251,10 +251,11 @@ class Door:
             imagerect.left = self.bottomrect.left
             surf.blit(SURFACES[self.image],imagerect)
             if K_r in keys:
+                keys.remove(K_r)
                 toreturn = True
             if player != None:
                 if imagerect.colliderect(player.rect):
-                    textimage = text.textgen.generatetext("press R to go to the next stage",None,"small",(0,0),(192,192,192))
+                    textimage = generatetext("press R to go to the next stage",None,"small",(0,0),(192,192,192))
                     textback = pygame.Surface(textimage.get_size())
                     textback.blit(textimage,(0,0))
                     textrect = textback.get_rect()

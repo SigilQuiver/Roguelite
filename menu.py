@@ -23,7 +23,7 @@ class Quickprint:
         surfacelist = []
         ypointer=0
         for string in self.printlist:
-            surface = textgen.generatetext(string)
+            surface = generatetext(string)
             surface = changecolour(surface,(0,0,0),(11,180,11))
             back = surface.copy()
             back.fill((0,0,0))
@@ -51,7 +51,7 @@ class Button:
         self.center = center
         self.text = text
         self.textcolour = (192,192,192)
-        self.textimage = textgen.generatetext(text)
+        self.textimage = generatetext(text)
         self.textimage = changecolour(self.textimage,(0,0,0),self.textcolour)
         self.colourhighlight = 50
         self.colournormal = 0
@@ -110,7 +110,7 @@ class Button:
     
     def changetext(self,text):
         self.textcolour = (192,192,192)
-        self.textimage = textgen.generatetext(text)
+        self.textimage = generatetext(text)
         self.textimage = changecolour(self.textimage,(0,0,0),self.textcolour)
         pos = self.rect.topleft
         centerx = self.rect.centerx
@@ -162,6 +162,7 @@ class Toggle:
         
 class Menu:
     def __init__(self,screen,screenmiddle=None):
+        self.starty = 70
         fullscreenresolutions = []
         for tup in pygame.display.list_modes():
             if tup not in fullscreenresolutions:
@@ -199,8 +200,9 @@ class Menu:
         self.currentstates = []
         
         
+        
     def returnwidgets(self,states,screen,screenmiddle=None):
-        ypointer = 40
+        ypointer = self.starty
         if screenmiddle == None:
             startingx = screen.get_width()//2
         else:
@@ -364,6 +366,24 @@ class Gamemenu(Menu):
                 config["play"][key] = str(result)
         config.write(settings)
         settings.close()
+
+class Gameover(Menu):
+    def __init__(self,screen,screenmiddle=None):
+        Menu.__init__(self,screen,screenmiddle)
+        self.starty = 150
+        self.states = {
+            "exit to menu":"menu",
+            "exit game":"exit"
+            }
+        self.widgets = {}
+        self.returnwidgets(self.states,screen,screenmiddle)
+    def writetofile(self):
+        pass
+    def getfromfile(self):
+        pass
+    def getoptions(self):
+        pass
+    
 
 HEARTSURFACES = spritesheettolist(pygame.image.load("sprites/heart.png"),3,True)
 class Hearts:

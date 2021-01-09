@@ -63,9 +63,9 @@ class Player:
         self.image.convert()
         
         self.rect = self.image.get_rect()
-        self.rect.center += vector(r.TILESIZE,r.TILESIZE)
+        self.rect.center += vector(r.TILESIZE*((r.TILENUM//2)-4),r.TILESIZE*(r.TILENUM//2))
 
-        self.initstats()
+        self.initstats(True)
         
         self.velocity = [0.1,0.1]
         self.gravity = GRAVITY
@@ -96,14 +96,15 @@ class Player:
         self.invunflashtimer = Timer(25)
 
         self.hastriedshot = False
-    def initstats(self):
+    def initstats(self,first = False):
         self.shotspeed = 3
         self.shootspeed = 20
         self.shoottimer = Timer(self.shootspeed)
-        self.maxhp = 6
-        self.hp = 6
+        self.maxhp = 8
         self.speed = 2
         self.dmg = 1
+        if first:
+            self.hp = self.maxhp
     def damage(self):
         if not self.invunerable:
             self.hp -=1
@@ -268,9 +269,9 @@ class Player:
         self.dmg = self.dmg*statdict["damage_mult"]
         self.speed += statdict["speed"]
         self.shotspeed += statdict["shot_speed"]
-        self.shootspeed -= statdict["shot_rate"]
+        self.shootspeed = max(self.shootspeed-statdict["shot_rate"],10)
         self.maxhp += statdict["max_hp"]
-        self.hp = min(self.maxhp,statdict["actual_hp"]+self.hp)
+        self.hp = max(min(self.maxhp,statdict["actual_hp"]+self.hp),2)
         self.shoottimer = Timer(self.shootspeed)
         
 
@@ -284,6 +285,7 @@ class Gun:
         self.pos = playerpos
         self.recoil = 0
         self.recoilx = 0
+        self.direction = "left"
     def update(self,entities,screen,player,mousepos):
         playerpos = inttuple(player.pos)
         vectorto = vector(mousepos) - vector(playerpos)
