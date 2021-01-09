@@ -17,7 +17,7 @@ import text as t
 #max health
 #actual health
 MINID = 1
-MAXID = 3
+MAXID = 8
 
 SURFACES = {}
 for filename in os.listdir("sprites/items"):
@@ -32,6 +32,7 @@ for filename in os.listdir("sprites/items"):
 
 class Items:
     def __init__(self):
+        self.possibleitems = (range(MINID+1,MAXID+1))
         self.itemlist = {}
         self.itemtype = type(Item())
         self.collected = []
@@ -46,7 +47,7 @@ class Items:
     def add(self,room,pos=(r.TILESIZE,r.TILESIZE),pool=None):
         if room not in self.itemlist.keys():
             self.itemlist[room] = []
-        self.itemlist[room].append(Item(randint(MINID,MAXID),pos))
+        self.itemlist[room].append(Item(choice(self.possibleitems),pos))
     def reset(self):
         self.itemlist = {}
     def resetcollection(self):
@@ -119,7 +120,7 @@ class Itemview:
             string += "#"
             string += '"'+tempitem.quote+'"#'
             string += tempitem.description
-            descriptionsurf = t.textgen.generatetext(string,descriptionsurf,"small",(1,1),(192,192,192))
+            descriptionsurf = t.generatetext(string,descriptionsurf,"small",(1,1),(192,192,192))
             descrect = descriptionsurf.get_rect()
             descrect.bottomright = mousepos
             if descrect.left <0:
@@ -169,10 +170,45 @@ class Item:
             self.shot_speed = 2
         if self.id == 3:
             self.name = "soldier's stim"
-            self.quote = "silly royal blood"
+            self.quote = "a vector for paradise"
             self.description = "damage and shot rate up"
-            self.damage = 1
-            self.shot_rate = 3
+            self.damage = 2
+            self.shot_rate = 2
+        if self.id == 4:
+            self.name = "mystery meat"
+            self.quote = "I don't think that's for eating"
+            self.description = "max hp up, take some damage"
+            self.actual_hp = -1
+            self.max_hp = 6
+        if self.id == 5:
+            self.name = "life extender mk.5"
+            self.quote = "should it be... dripping?"
+            self.description = "max hp up, full heal"
+            self.max_hp = 4
+            self.actual_hp = 100
+        if self.id == 6:
+            self.name = "shiny spring"
+            self.quote = "mach 20 speeds"
+            self.description = "shot speed up"
+            self.shot_speed = 2
+        if self.id == 7:
+            self.name = "wanted poster"
+            self.quote = "fastest frog killer in the west"
+            self.description = "shot speed and shot rate up"
+            self.shot_speed = 1
+            self.shot_rate = 1
+        if self.id == 8:
+            self.name = "participation medal"
+            self.quote = "shiny!"
+            self.description = "all stats up"
+            self.shot_speed = 1
+            self.shot_rate = 1
+            self.speed = 1
+            self.damage = 2
+            self.max_hp = 2
+            self.damage_mult = 0.5
+            
+            
         
     def update(self,screen,player,entities):
         if not self.finishanimation:

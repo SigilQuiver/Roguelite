@@ -21,12 +21,13 @@ import pickle
     
 #adds borders to a tuple representation of a room, leaving holes where the player can move to different rooms
 #the gaps will changed based on which direction the room is coming from
-def processroom(room,directions):
+def processroom(room,directions,stage):
     #get the furthest grid coordinates at the edge of the screen
     last = r.TILENUM-1
     tiles = room
-
     tiletype = 1
+    if stage in ["stage2","stage3"]:
+        tiletype = 2
     #creates a border around the whole room
     for x in range(0,last+1,last):
         for y in range(last+1):
@@ -111,10 +112,10 @@ def assignspecialrooms(tree):
     return specialdict
 
 #returns a dictionary with room objects for each node in the tree
-def treestorooms(tree,items,newrun=False):
+def treestorooms(tree,items,newrun=False,stage = "stage1"):
     roomdict = {}
     rooms = r.getrooms()
-    stage = "stage1"
+    
     roomlist = rooms[stage]["normal"]
     for key in tree:
         #if the room is not the root
@@ -129,7 +130,7 @@ def treestorooms(tree,items,newrun=False):
         #room = room["tiles"]
         connected = m.getconnected(tree,key)
         tiles = room["tiles"]
-        tiles = processroom(tiles,connected)
+        tiles = processroom(tiles,connected,stage)
         
         room["tiles"] = tiles
         roomdict[key] = r.Room(room)
@@ -144,7 +145,7 @@ def treestorooms(tree,items,newrun=False):
         room = rooms[stage][contents][randint(0,len(rooms[stage][contents])-1)]
         connected = m.getconnected(tree,roomkey)
         tiles = room["tiles"]
-        tiles = processroom(tiles,connected)
+        tiles = processroom(tiles,connected,stage)
         
         room["tiles"] = tiles
         
@@ -157,19 +158,21 @@ def treestorooms(tree,items,newrun=False):
     return roomdict,specialdict,items
 
 #saves the state of the current map into a dat file
-def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items):
+def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player):
     file = open(PICKLEFILE,"wb")
     rundict = {"tree":tree,
                "roomdict":roomdict,
                "currentroom":currentroom,
                "exploredlist":exploredlist,
                "specialdict":specialdict,
-               "items":items}
+               "items":items,
+               "maxhp":player.maxhp,
+               "hp":player.hp}
     pickle.dump(rundict,file)
     file.close()
 
 #retrieves data from the dat file, to get a saved run
-def getrun():
+def getrun(player):
     file = open(PICKLEFILE,"rb")
     rundict = pickle.load(file)
     tree = rundict["tree"]
@@ -178,8 +181,10 @@ def getrun():
     exploredlist = rundict["exploredlist"]
     specialdict = rundict["specialdict"]
     items = rundict["items"]
+    player.maxhp = rundict["maxhp"]
+    player.hp = rundict["hp"]
     file.close()
-    return tree,roomdict,currentroom,exploredlist,specialdict,items           
+    return tree,roomdict,currentroom,exploredlist,specialdict,items        
 
 #class that allows the smooth transition between rooms
 class Roomtransition:
@@ -482,6 +487,7 @@ ROOMNUM = 12
 tree = m.generatetree(ROOMNUM)
 #starts the player at spawn, with no explored rooms
 currentroom = "A"
+previousroom = currentroom
 exploredlist = []
 
 items = i.Items()
@@ -541,6 +547,9 @@ toblit.fill((0,0,0))
 gameoffset = (0,0)
 screenoffset = (0,0)
 
+stages = ["stage2","stage3","stage1","stage2"]
+
+gameover = Gameover(toblit)
 
 while True:
     gamesurf = pygame.Surface(GAMESIZE)
@@ -569,7 +578,7 @@ while True:
         #if the player presses the exit button on the window, close the window and stop the script        
         if event.type == pygame.QUIT:
             if state == "game" or state == "gamemenu":
-                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
+                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player)
             pygame.quit()
             sys.exit()
         if event.type == pygame.KEYDOWN:
@@ -584,19 +593,26 @@ while True:
     screen.fill((0,0,0))
     clock.tick(80)
 
+    
+    
     if K_ESCAPE in keys:
         keys.remove(K_ESCAPE)
         menu.__init__(toblit)
         gamemenu.__init__(toblit)
-        if state == "menu":
+        if state in ["menu","gameover"]:
             pygame.quit()
             sys.exit()
         elif state == "gamemenu":
             state = "game"
         elif state == "game":
             state = "gamemenu"
-        
+
+    if player.hp <= 0 and state == "game":
+            state = "gameover"
+    
     if state == "game":
+        if roomdict[currentroom].completed:
+            previousroom = currentroom
         if not currentroom in exploredlist:
             exploredlist.append(currentroom)
             
@@ -671,7 +687,7 @@ while True:
             if player.canshoot():
                 shooting = True
         """
-        
+        nextstage = False
         #if there is no transition animation, update sprites normally
         if not transition.intransition():
             
@@ -684,15 +700,14 @@ while True:
                     for num2 in range(4):
                         doortiles[num+num2].update(gamesurf)
             
-            quick.print(roomdict[currentroom].update(gamesurf,player,keys,inencounter,e.entities))
+            nextstage = roomdict[currentroom].update(gamesurf,player,keys,roomdict[currentroom].completed,e.entities)
             
             e.entities.update(tiles,player,gamesurf)
             items.update(gamesurf,player,e.entities,currentroom)
             if items.changestats:
                 player.changestats(items)
-            player.update(gundir,tiles,gamesurf,keys)
+            player.update(gun.direction,tiles,gamesurf,keys)
             gun.update(e.entities,gamesurf,player,mousepos)
-            gundir = gun.direction
 
         scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
         tempscale = int(scale)
@@ -713,12 +728,32 @@ while True:
         heart.update(toblit,player.hp,player.maxhp,(1,1))
         #minimap.changealpha(player,mousepos)
 
+        if nextstage:
+            print(stages)
+            tree = m.generatetree(ROOMNUM)
+            currentroom = "A"
+            exploredlist = []
+            roomdict,specialdict,items = treestorooms(tree,items,True,stages[0])
+            transition = Roomtransition()
+            player = platformer.Player()
+            player.changestats(items)
+            gun = platformer.Gun(player.pos)
+
+            stages.pop(0)
+            nextstage = False
+        quick.print(player.hp)
+        
+
     elif state == "gamemenu":
+        titletext = generatetext("paused",None,"big",(0,0),(192,192,192))
+        titlerect = titletext.get_rect()
+        titlerect.center = (toblit.get_width()//2,10)
+        toblit.blit(titletext,titlerect)
+        
         gamemenu.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
         buttons = gamemenu.getbuttonresults()
         for key in buttons:
             result = buttons[key]
-            
             if result:
                 if key == "return":
                     state = "game"
@@ -727,14 +762,19 @@ while True:
                 if key == "menu":
                     menu.__init__(toblit)
                     state = "menu"
-                    saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
                 if key == "save":
-                    saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
                 if key == "exit":
-                    saverun(tree,roomdict,currentroom,exploredlist,specialdict,items)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
                     pygame.quit()
                     sys.exit()
     elif state == "menu":
+        titletext = generatetext("generic platformer roguelite",None,"big",(0,0),(192,192,192))
+        titlerect = titletext.get_rect()
+        titlerect.center = (toblit.get_width()//2,10)
+        toblit.blit(titletext,titlerect)
+        
         menu.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
         buttons = menu.getbuttonresults()
         for key in buttons:
@@ -748,6 +788,7 @@ while True:
                     pygame.quit()
                     sys.exit()
                 if key == "newgame":
+                    stages = ["stage2","stage3","stage1","stage2"]
                     items.reset()
                     items.resetcollection()
                     for x in range(22,22*10,22):
@@ -764,10 +805,27 @@ while True:
                 if key == "savedgame":
                     items.reset()
                     gamemenu.reposition(toblit)
-                    tree,roomdict,currentroom,exploredlist,specialdict,items = getrun()
+                    tree,roomdict,currentroom,exploredlist,specialdict,items = getrun(player)
                     player.changestats(items)
                     state = "game"
-                
+    elif state == "gameover":
+        titletext = generatetext("game over",None,"big",(0,0),(192,192,192))
+        titlerect = titletext.get_rect()
+        titlerect.center = (toblit.get_width()//2,10)
+        toblit.blit(titletext,titlerect)
+        gameover.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
+        buttons = gameover.getbuttonresults()
+        for key in buttons:
+            result = buttons[key]
+            if result:
+                if key == "menu":
+                    menu.__init__(toblit)
+                    state = "menu"
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
+                if key == "exit":
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
+                    pygame.quit()
+                    sys.exit()
     
     quick.print("fps:",int(clock.get_fps()))
     #quick.print(str(items.itemlist))
@@ -788,7 +846,7 @@ while True:
             string+= "   "
             string+= "increase the height of window"
             
-        textgen.generatetext(string,screen,"big",(1,1),(192,192,192))
+        generatetext(string,screen,"big",(1,1),(192,192,192))
     else:
         
 
