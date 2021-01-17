@@ -110,6 +110,7 @@ class Player:
             self.hp -=1
             self.invunerable = True
             self.invuntimer.reset()
+        return not invunerable
     def updateinvun(self):
         if self.invunerable:
             if self.invuntimer.update():

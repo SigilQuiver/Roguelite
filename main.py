@@ -17,6 +17,8 @@ import platformer
 from menu import *
 from vector import *
 
+from unlocks import *
+
 import pickle
     
 #adds borders to a tuple representation of a room, leaving holes where the player can move to different rooms
@@ -158,7 +160,7 @@ def treestorooms(tree,items,newrun=False,stage = "stage1"):
     return roomdict,specialdict,items
 
 #saves the state of the current map into a dat file
-def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player):
+def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty):
     file = open(PICKLEFILE,"wb")
     rundict = {"tree":tree,
                "roomdict":roomdict,
@@ -167,7 +169,9 @@ def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player):
                "specialdict":specialdict,
                "items":items,
                "maxhp":player.maxhp,
-               "hp":player.hp}
+               "hp":player.hp,
+               "stages":stages,
+               "difficulty":difficulty}
     pickle.dump(rundict,file)
     file.close()
 
@@ -183,8 +187,10 @@ def getrun(player):
     items = rundict["items"]
     player.maxhp = rundict["maxhp"]
     player.hp = rundict["hp"]
+    difficulty = rundict["difficulty"]
+    stages = rundict["stages"]
     file.close()
-    return tree,roomdict,currentroom,exploredlist,specialdict,items        
+    return tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages        
 
 #class that allows the smooth transition between rooms
 class Roomtransition:
@@ -198,7 +204,7 @@ class Roomtransition:
         self.slip = 0.2
             
     #used to check if the transition should be started (i.e. if the player moves to a new room)
-    def updatestart(self,explored,entities,player,surface,triggers,roomdict,tree,currentroom):
+    def updatestart(self,explored,entities,player,surface,triggers,roomdict,tree,currentroom,unlocks):
         direction = self.gettriggers(triggers)
         nextroom = self.getnextroom(direction,currentroom,tree)
         #start the transition if the player has moved to a new room
@@ -211,7 +217,7 @@ class Roomtransition:
             entities.clearenemies()
             entities.clearprojectiles()
             
-            self.updatescreen(player,surface,roomdict,currentroom)
+            self.updatescreen(player,surface,roomdict,currentroom,unlocks)
             self.betweenroomanimate = True
             return nextroom
             
@@ -226,21 +232,21 @@ class Roomtransition:
                 return self.directions[keytriggers.index(trigger)]
 
     #updates the surfaces for both rooms
-    def updatescreen(self,player,surface,roomdict,currentroom):
+    def updatescreen(self,player,surface,roomdict,currentroom,unlocks):
         surface.fill((0,0,0))
-        self.updatesprites(player,surface,roomdict,currentroom)
+        self.updatesprites(player,surface,roomdict,currentroom,unlocks)
         #take a snapshot of the current screen
         self.currentsurface = surface.copy()
 
         #create a new surface and draw all the sprites on it that would normally be drawn directly onto the screen
         self.nextsurface = pygame.Surface((r.TILESIZE*r.TILENUM,r.TILESIZE*r.TILENUM))
-        self.updatesprites(player,self.nextsurface,roomdict,self.nextroom)
+        self.updatesprites(player,self.nextsurface,roomdict,self.nextroom,unlocks)
         
 
     #updates the surface for the next room
-    def updatesprites(self,player,surface,roomdict,currentroom):
+    def updatesprites(self,player,surface,roomdict,currentroom,unlocks):
         roomdict[currentroom].updatedecor(surface)
-        e.entities.update(roomdict[currentroom].tilelist,player,surface)
+        e.entities.update(roomdict[currentroom].tilelist,player,surface,unlocks)
         player.updatesprite(surface)
         roomdict[currentroom].update(surface)
 
@@ -551,6 +557,10 @@ stages = ["stage2","stage3","stage1","stage2"]
 
 gameover = Gameover(toblit)
 
+difficulty = "normal"
+
+unlocks = Unlocks()
+
 while True:
     gamesurf = pygame.Surface(GAMESIZE)
     scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
@@ -578,7 +588,8 @@ while True:
         #if the player presses the exit button on the window, close the window and stop the script        
         if event.type == pygame.QUIT:
             if state == "game" or state == "gamemenu":
-                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player)
+                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty)
+                unlocks.writesave()
             pygame.quit()
             sys.exit()
         if event.type == pygame.KEYDOWN:
@@ -611,6 +622,8 @@ while True:
             state = "gameover"
     
     if state == "game":
+        if 3-len(stages) == 1:
+            unlocks.progressachievement(3)
         if roomdict[currentroom].completed:
             previousroom = currentroom
         if not currentroom in exploredlist:
@@ -620,7 +633,7 @@ while True:
             doorprogress = 0
             inencounter = True
             for enemy in roomdict[currentroom].enemies:
-                e.entities.add(e.Enemy(vector(enemy[1])*r.TILESIZE,enemy[0]))
+                e.entities.add(e.Enemy(vector(enemy[1])*r.TILESIZE,enemy[0],(0,0),0,0,difficulty,3-len(stages)))
         else:
             inencounter = False
             
@@ -642,7 +655,7 @@ while True:
                 
         
         directions = moveplayertransition(gamesurf,transition,player)
-        transition.updatestart(exploredlist,e.entities,player,gamesurf,directions,roomdict,tree,currentroom)
+        transition.updatestart(exploredlist,e.entities,player,gamesurf,directions,roomdict,tree,currentroom,unlocks)
         currentroom = transition.updateanimate(gamesurf,roomdict,currentroom)
         
         #get new map, reset explored list and set current room to spawn
@@ -702,7 +715,7 @@ while True:
             
             nextstage = roomdict[currentroom].update(gamesurf,player,keys,roomdict[currentroom].completed,e.entities)
             
-            e.entities.update(tiles,player,gamesurf)
+            e.entities.update(tiles,player,gamesurf,unlocks)
             items.update(gamesurf,player,e.entities,currentroom)
             if items.changestats:
                 player.changestats(items)
@@ -762,13 +775,18 @@ while True:
                 if key == "menu":
                     menu.__init__(toblit)
                     state = "menu"
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    unlocks.writesave()
                 if key == "save":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    unlocks.writesave()
                 if key == "exit":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    unlocks.writesave()
                     pygame.quit()
                     sys.exit()
+        if "see unlocks" in gamemenu.currentstates:
+            unlocks.drawunlocks(toblit,mousepos2)
     elif state == "menu":
         titletext = generatetext("generic platformer roguelite",None,"big",(0,0),(192,192,192))
         titlerect = titletext.get_rect()
@@ -788,7 +806,9 @@ while True:
                     pygame.quit()
                     sys.exit()
                 if key == "newgame":
-                    stages = ["stage2","stage3","stage1","stage2"]
+                    print(menu.getoptions()["difficulty"])
+                    difficulty = menu.getoptions()["difficulty"]
+                    stages = ["stage1","stage1","stage1"]
                     items.reset()
                     items.resetcollection()
                     for x in range(22,22*10,22):
@@ -805,9 +825,11 @@ while True:
                 if key == "savedgame":
                     items.reset()
                     gamemenu.reposition(toblit)
-                    tree,roomdict,currentroom,exploredlist,specialdict,items = getrun(player)
+                    tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages = getrun(player)
                     player.changestats(items)
                     state = "game"
+            if "see unlocks" in menu.currentstates:
+                unlocks.drawunlocks(toblit,mousepos2)
     elif state == "gameover":
         titletext = generatetext("game over",None,"big",(0,0),(192,192,192))
         titlerect = titletext.get_rect()
@@ -821,9 +843,11 @@ while True:
                 if key == "menu":
                     menu.__init__(toblit)
                     state = "menu"
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    unlocks.writesave()
                 if key == "exit":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    unlocks.writesave()
                     pygame.quit()
                     sys.exit()
     

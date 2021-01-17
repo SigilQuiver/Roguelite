@@ -176,7 +176,8 @@ class Menu:
                     "start new game":"newgame",
                     "back|1":"back"
                     },
-                "see unlocks":None,
+                "see unlocks":{"back|5":"back"
+                           },
                 "back|2":"back"
                 },
             "options":{
@@ -322,7 +323,8 @@ class Gamemenu(Menu):
                 
         self.states = {
             "return":"return",
-            "see unlocks":None,
+            "see unlocks":{"back|5":"back"
+                           },
             "options":{
                 "fullscreen":["toggle",[True,False]],
                 "fullscreen resolution":["toggle",fullscreenresolutions],
@@ -406,9 +408,6 @@ class Hearts:
             xpointer +=xtravel
             maxhp-=2
             hp-=2
-
-    
-                
             
         
 """     

@@ -71,9 +71,9 @@ class Entities:
             except:
                 dust.delete = False
                 
-    def updateenemies(self,tilelist,player,screen):
+    def updateenemies(self,tilelist,player,screen,unlocks):
         for enemy in self.enemylist:
-            enemy.update(tilelist,player,screen,self)
+            enemy.update(tilelist,player,screen,self,unlocks)
             
         for enemy in self.enemylist:
             try:
@@ -104,8 +104,8 @@ class Entities:
             return True
         return False
 
-    def update(self,tilelist,player,screen):
-        self.updateenemies(tilelist,player,screen)
+    def update(self,tilelist,player,screen,unlocks):
+        self.updateenemies(tilelist,player,screen,unlocks)
         self.updateprojectiles(tilelist,player,screen)
         self.updatedusts(screen)
     def clearprojectiles(self):
@@ -189,7 +189,9 @@ class Projectile(Entity):
             for x in range(randint(3,5)):
                 entities.add(Dust(vector(enemy.pos).lerp(self.pos,0.3),2,(0,0),self.rotation+180+randint(-45,45),randint(3,6)))
         pass
-    def playercollide(self,player):
+    def playercollide(self,player,entities):
+        if self.id == 2:
+            self.ondeath(entities)
         player.damage()
     def offscreen(self,screen):
         if False:
@@ -249,7 +251,7 @@ class Projectile(Entity):
                 self.enemycollide(enemycollidelist,entities)
         else:
             if self.rect.colliderect(player.rect):
-                self.playercollide(player)
+                self.playercollide(player,entities)
 
         if self.rect.top>screen.get_height() or self.rect.bottom<0 or self.rect.left<0 or self.rect.right>screen.get_width():
             self.offscreen(screen)
@@ -361,8 +363,14 @@ ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/froge.png"),2)
 ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/mushroom.png"),4,True))
 
 class Enemy(Entity):
-    def __init__(self,pos=(90,90),ident=1,velocity=(0,0),rotation=0,speed=0):
+    def __init__(self,pos=(90,90),ident=1,velocity=(0,0),rotation=0,speed=0,difficulty="normal",stagenum = 1):
         Entity.__init__(self,pos,ident,velocity,rotation)
+        multipliers = {
+            "hard":1.25+(stagenum*0.3),
+            "normal":1+(stagenum*0.2),
+            "easy":0.75+(stagenum*0.1)
+            }
+        self.multiplier = multipliers[difficulty]
         #self.speed = 1
         try:
             
@@ -372,7 +380,6 @@ class Enemy(Entity):
         self.hp = 1
         self.contactdamage = 1
         self.shootdamage = 1
-        self.flying = False
         self.sides = {"top":False,
                   "bottom":False,
                   "left":False,
@@ -390,7 +397,7 @@ class Enemy(Entity):
             self.image = pygame.Surface((30,22))
             self.image.fill((100,100,100))
             self.jumping = False
-            self.jumptimer = Timer(40)
+            self.jumptimer = Timer(60*(2-self.multiplier))
             self.direction = ["left","right"]
             if randint(0,1) == 1:
                 self.direction.reverse()
@@ -401,7 +408,7 @@ class Enemy(Entity):
             self.velocity[1] = -1
             self.image = pygame.Surface((22,22))
             self.image.fill((100,100,100))
-            self.shoottimer = Timer(120)
+            self.shoottimer = Timer(120*(2-self.multiplier))
             self.direction = ["left","right"]
             if randint(0,1) == 1:
                 self.direction.reverse()
@@ -409,6 +416,9 @@ class Enemy(Entity):
             self.velocity[0] = -self.speed
             self.hp = 10
             self.imagetimer = Timer(10)
+
+        print(self.multiplier)
+        self.hp *= self.multiplier
     def normalupdate(self,screen,tilelist,entities):
         if self.id == 1:
             self.velocity[1] = min(self.velocity[1]+GRAVITY,MAXY)
@@ -455,8 +465,10 @@ class Enemy(Entity):
             
                 
                 
-    def playercollide(self,player):
-        player.damage()
+    def playercollide(self,player,unlocks):
+        
+        if player.damage():
+            unlocks.progressachievement(2)
     
     def moveofftile(self,tilelist):
         self.pos = list(self.pos)
@@ -498,15 +510,18 @@ class Enemy(Entity):
                     self.sides["right"] = True
         
         self.pos = self.rect.center
-    def ondeath(self):
+    def ondeath(self,unlocks):
+        if self.id == 1:
+            unlocks.progressachievement(0)
+        unlocks.progressachievement(2)
         self.delete = True
-    def update(self,tilelist,player,screen,entities):
+    def update(self,tilelist,player,screen,entities,unlocks):
         if self.hp <=0:
-            self.ondeath()
+            self.ondeath(unlocks)
         self.normalupdate(screen,tilelist,entities)
         self.rect.center = self.pos
         if self.rect.colliderect(player.rect):
-            self.playercollide(player)
+            self.playercollide(player,unlocks)
 
         self.moveofftile(tilelist)
                 
