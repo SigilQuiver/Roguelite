@@ -746,6 +746,7 @@ while True:
 
         if nextstage:
             if not len(stages) == 0:
+                items.reset()
                 tree = m.generatetree(ROOMNUM)
                 currentroom = "A"
                 exploredlist = []
@@ -755,7 +756,6 @@ while True:
                 player.changestats(items)
                 player.hp = player.maxhp
                 gun = platformer.Gun(player.pos)
-                items.reset()
                 stages.pop(0)
                 nextstage = False
             else:
