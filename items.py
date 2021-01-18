@@ -31,8 +31,10 @@ for filename in os.listdir("sprites/items"):
         SURFACES[filename[:-4]] = surf
 
 class Items:
-    def __init__(self):
-        self.possibleitems = (range(MINID+1,MAXID+1))
+    def __init__(self,unlocks):
+        self.possibleitems = list(range(MINID+1,MAXID+1))
+        for num in unlocks.getommitteditems():
+            self.possibleitems.remove(num)
         self.itemlist = {}
         self.itemtype = type(Item())
         self.collected = []
@@ -68,7 +70,9 @@ class Items:
             self.statdict["shot_speed"] += item.shot_speed
             self.statdict["shot_rate"] += item.shot_rate
             self.statdict["max_hp"] += item.max_hp
-            self.statdict["actual_hp"] += item.actual_hp
+            if item.actual_hp != 0 and not item.givenhp:
+                self.statdict["actual_hp"] += item.actual_hp
+                item.givenhp = True
         return self.statdict
     
 class Itemview:
@@ -154,6 +158,7 @@ class Item:
         self.shot_rate = 0
         self.max_hp = 0
         self.actual_hp = 0
+        self.givenhp = False
         
         
         if self.id == 1:
