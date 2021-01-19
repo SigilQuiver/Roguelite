@@ -152,12 +152,12 @@ PROJECTILESURFACES.append([pygame.image.load("sprites/bullet.png")])
 PROJECTILESURFACES.append(spritesheettolist(pygame.image.load("sprites/bubble.png"),4,False,False))
 
 class Projectile(Entity):
-    def __init__(self,pos=(0,0),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0):
+    def __init__(self,pos=(0,0),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0,spectral=False,timetodie=None):
         Entity.__init__(self,pos,ident,velocity,rotation,speed)
         self.damage = damage
         self.pierce = 5
         self.friendly=True
-        self.spectral=False
+        self.spectral=spectral
         self.hit = []
         
         try:
@@ -167,6 +167,9 @@ class Projectile(Entity):
         
         if self.images != []:
             self.rect = self.images[0].get_rect()
+        self.timetodie = None
+        if timetodie != None:
+            self.timetodie = Timer(timetodie)
         self.initid()
     def initid(self):
         if self.id == 1:
@@ -207,6 +210,9 @@ class Projectile(Entity):
             for x in range(randint(2,3)):
                 entities.add(Dust(self.pos,3,(0,0),randint(0,360),randint(1,3)))
     def normalupdate(self,entities):
+        if self.timetodie != None:
+            if self.timetodie.update():
+                self.ondeath(entities)
         if self.id == 1:
             self.image = self.images[0]
             self.imagerotation = -self.rotation
@@ -361,6 +367,7 @@ class Dust(Entity):
 ENEMYSURFACES = []
 ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/froge.png"),2))
 ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/mushroom.png"),4,True))
+ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/mushroomboss.png"),4))
 
 class Enemy(Entity):
     def __init__(self,pos=(90,90),ident=1,velocity=(0,0),rotation=0,speed=0,difficulty="normal",stagenum = 1):
@@ -392,8 +399,10 @@ class Enemy(Entity):
         else:
             self.rect = self.images[0].get_rect()
         self.rect.center = tilerect.center
+        self.rect.bottom = tilerect.bottom
     def initid(self):
         if self.id == 1:
+            self.name = "frog"
             self.image = pygame.Surface((30,22))
             self.image.fill((100,100,100))
             self.jumping = False
@@ -405,6 +414,7 @@ class Enemy(Entity):
             self.velocity[0] = -self.speed
             self.hp = 10
         if self.id == 2:
+            self.name = "mushroom"
             self.velocity[1] = -1
             self.image = pygame.Surface((22,22))
             self.image.fill((100,100,100))
@@ -416,10 +426,72 @@ class Enemy(Entity):
             self.velocity[0] = -self.speed
             self.hp = 10
             self.imagetimer = Timer(10)
+            self.shootspeed = 2*self.multiplier
 
-        print(self.multiplier)
+        if self.id == 3:
+            self.velocity = vector(0,0.0000001)
+            self.name = "mushroomboss"
+            self.state = "idle"
+            self.states = ["idle","attack1","attack2","attack3"]
+            self.betweenattackdelay = Timer(200*(2-self.multiplier))
+            self.attackdelay = Timer(70*(2-self.multiplier))
+            self.bubbledelay = Timer(50*(2-self.multiplier))
+            self.bubblespraytime = Timer(10*(2-self.multiplier))
+            self.bubblespeed = self.multiplier
+            self.attacking = False
+            self.shotspeed = 2*self.multiplier
+            self.hp = 50*self.multiplier
         self.hp *= self.multiplier
-    def normalupdate(self,screen,tilelist,entities):
+    def normalupdate(self,screen,tilelist,entities,player):
+        if self.id == 3:
+            self.image = self.images[self.states.index(self.state)]
+            if not self.attacking:
+                if self.betweenattackdelay.update():
+                    self.state = choice(["attack1","attack2","attack3"])
+                    self.betweenattackdelay.reset()
+                    if self.state == "attack2":
+                        self.shots = 3
+                    if self.state == "attack1":
+                        self.shots = 2
+            if self.attacking:
+                if self.attackdelay.update():
+                    if self.state == "attack1":
+                        if self.bubbledelay.update():
+                            self.bubbledelay.reset()
+                            self.shots -= 1
+                            for _ in range(5):
+                                vectortoadd = vector(randint(25,125),0)
+                                vectortoadd.rotate_ip(randint(0,360))
+                                pos = vector(self.pos)+vectortoadd
+                                entities.add(Projectile(pos,0,2,(0,0),0,0,True,randint(270,400)))
+                            if self.shots == 0:
+                                
+                                self.state = "idle"
+                    if self.state == "attack2":
+                        if self.bubbledelay.update():
+                            self.bubbledelay.reset()
+                            self.shots -= 1
+                            playerpos = vector(self.pos)
+                            angle = vector(0,0).angle_to(vector(player.pos)-vector(self.pos))
+                            entities.add(Projectile(self.pos,0,2,(0,0),angle,self.shotspeed,True))
+                            if self.shots == 0:
+                                
+                                self.state = "idle"
+                    if self.state == "attack3":
+                        if not self.bubblespraytime.update():
+                            for _ in range(2):
+                                angle = randint(180+45,360-45)
+                                entities.add(Projectile(self.pos,0,2,(0,0),angle,self.shotspeed*uniform(1,0.7)))
+                        else:
+                            self.state = "idle"
+                            self.bubblespraytime.reset()
+            if self.state == "idle":
+                self.attacking = False
+            else:
+                self.attacking = True
+                            
+                        
+                        
         if self.id == 1:
             self.velocity[1] = min(self.velocity[1]+GRAVITY,MAXY)
             if self.sides["left"] or self.sides["right"]:#self.velocity[0] == 0:
@@ -458,8 +530,8 @@ class Enemy(Entity):
                 
             if self.shoottimer.update():
                 self.shoottimer.reset()
-                entities.add(Projectile(self.pos,0,2,(0,0),45,2))
-                entities.add(Projectile(self.pos,0,2,(0,0),45+90,2))
+                entities.add(Projectile(self.pos,0,2,(0,0),45,self.shootspeed))
+                entities.add(Projectile(self.pos,0,2,(0,0),45+90,self.shootspeed))
         if not screen.get_rect().colliderect(self.rect):
             self.pos = (90,90)
             
@@ -518,7 +590,7 @@ class Enemy(Entity):
     def update(self,tilelist,player,screen,entities,unlocks):
         if self.hp <=0:
             self.ondeath(unlocks)
-        self.normalupdate(screen,tilelist,entities)
+        self.normalupdate(screen,tilelist,entities,player)
         self.rect.center = self.pos
         if self.rect.colliderect(player.rect):
             self.playercollide(player,unlocks)

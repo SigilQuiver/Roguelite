@@ -198,7 +198,7 @@ while True:
        
         #draw room to screen and refresh it
         temproom = r.Room({"tiles":tiles})
-        temproom.update(screen,None,[],False)
+        temproom.update(screen,None,[],True)
         for enemy in enemies:
             string = "ene"+str(enemy[0])+"  "
             numbersurf = changecolour(textgen.generatetext(string),(0,0,0),(255,30,10))

@@ -28,8 +28,10 @@ def processroom(room,directions,stage):
     last = r.TILENUM-1
     tiles = room
     tiletype = 1
-    if stage in ["stage2","stage3"]:
+    if stage == "stage2":
         tiletype = 2
+    if stage == "stage3":
+        tiletype = 3
     #creates a border around the whole room
     for x in range(0,last+1,last):
         for y in range(last+1):
@@ -495,8 +497,8 @@ tree = m.generatetree(ROOMNUM)
 currentroom = "A"
 previousroom = currentroom
 exploredlist = []
-
-items = i.Items()
+unlocks = Unlocks()
+items = i.Items(unlocks)
 itemui = i.Itemview()
 #items.add("A",(90,90))
 
@@ -559,8 +561,9 @@ gameover = Gameover(toblit)
 
 difficulty = "normal"
 
-unlocks = Unlocks()
 
+
+haswon = False
 while True:
     gamesurf = pygame.Surface(GAMESIZE)
     scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
@@ -742,19 +745,22 @@ while True:
         #minimap.changealpha(player,mousepos)
 
         if nextstage:
-            print(stages)
-            tree = m.generatetree(ROOMNUM)
-            currentroom = "A"
-            exploredlist = []
-            roomdict,specialdict,items = treestorooms(tree,items,True,stages[0])
-            transition = Roomtransition()
-            player = platformer.Player()
-            player.changestats(items)
-            gun = platformer.Gun(player.pos)
-
-            stages.pop(0)
-            nextstage = False
-        quick.print(player.hp)
+            if not len(stages) == 0:
+                items.reset()
+                tree = m.generatetree(ROOMNUM)
+                currentroom = "A"
+                exploredlist = []
+                roomdict,specialdict,items = treestorooms(tree,items,True,stages[0])
+                transition = Roomtransition()
+                player = platformer.Player()
+                player.changestats(items)
+                player.hp = player.maxhp
+                gun = platformer.Gun(player.pos)
+                stages.pop(0)
+                nextstage = False
+            else:
+                haswon = True
+                state = "gameover"
         
 
     elif state == "gamemenu":
@@ -762,7 +768,6 @@ while True:
         titlerect = titletext.get_rect()
         titlerect.center = (toblit.get_width()//2,10)
         toblit.blit(titletext,titlerect)
-        
         gamemenu.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
         buttons = gamemenu.getbuttonresults()
         for key in buttons:
@@ -808,11 +813,13 @@ while True:
                 if key == "newgame":
                     print(menu.getoptions()["difficulty"])
                     difficulty = menu.getoptions()["difficulty"]
-                    stages = ["stage1","stage1","stage1"]
+                    stages = ["stage1","stage1"]
                     items.reset()
                     items.resetcollection()
+                    """
                     for x in range(22,22*10,22):
                         items.add("A",(x,22*4))
+                    """
                     tree = m.generatetree(ROOMNUM)
                     currentroom = "A"
                     exploredlist = []
@@ -831,10 +838,31 @@ while True:
             if "see unlocks" in menu.currentstates:
                 unlocks.drawunlocks(toblit,mousepos2)
     elif state == "gameover":
-        titletext = generatetext("game over",None,"big",(0,0),(192,192,192))
+        if haswon:
+            titletext = generatetext("you won",None,"big",(0,0),(192,192,192))
+            msg = "well done!!!"
+        else:
+            titletext = generatetext("game over",None,"big",(0,0),(192,192,192))
+            msg = "better luck next time!"
+        ypointer = 10
         titlerect = titletext.get_rect()
-        titlerect.center = (toblit.get_width()//2,10)
+        titlerect.center = (toblit.get_width()//2,ypointer)
         toblit.blit(titletext,titlerect)
+        
+        ypointer += 20
+        stats = [
+            msg,
+            " ",
+            "mode:"+str(difficulty),
+            "hits taken:"+str(player.hitstaken),
+            "items collected:"+str(len(items.collected))
+            ]
+        for stat in stats:
+            text = generatetext(stat,None,"small",(0,0),(192,192,192))
+            textrect = titletext.get_rect()
+            textrect.center = (toblit.get_width()//2,ypointer)
+            toblit.blit(text,textrect)
+            ypointer += 9
         gameover.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
         buttons = gameover.getbuttonresults()
         for key in buttons:
@@ -852,8 +880,6 @@ while True:
                     sys.exit()
     
     quick.print("fps:",int(clock.get_fps()))
-    #quick.print(str(items.itemlist))
-    #quick.print(items.collected)
     quick.update(toblit)
     
     optionsdict = menu.getoptions()

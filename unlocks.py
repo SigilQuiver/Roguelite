@@ -28,11 +28,12 @@ class Unlocks:
         file = open(UNLOCKFILE,"wb")
         pickle.dump(self.unlocks,file)
         file.close()
-    def getommiteditems(self):
+    def getommitteditems(self):
         rejected = []
         for achievement in self.unlocks:
             if not achievement["finished"]:
                 rejected.append(achievement["item"])
+        return rejected
     def progressachievement(self,achievementindex):
         if achievementindex <= len(self.unlocks):
             achievement = self.unlocks[achievementindex]
@@ -48,10 +49,13 @@ class Unlocks:
         ypointer = 82
         ychange = 12
         for unlock in self.unlocks:
-            string = unlock["description"]+" ("+str(unlock["progress"])+"/"+str(unlock["condition"])+")"
-            if unlock["completed"]:
-                colour = (50,50,50)
+            string = unlock["description"]
+            if type(unlock["progress"]) == type(1):
+                string += "("+str(unlock["progress"])+"/"+str(unlock["condition"])+")"
+            if unlock["finished"]:
+                colour = (80,80,80)
                 text = generatetext(string,None,"small",(0,0),colour)
+                pygame.draw.line(text,colour,(0,3),(text.get_width()-2,3))
             else:
                 text = generatetext(string,None,"small",(0,0),(192,192,192))
             

@@ -100,6 +100,8 @@ class Room:
                         self.visualtiles.append(Tile(abovepos,"bricktiledecor1top"))
                     if prob in [2,3]:
                         self.visualtiles.append(Tile(abovepos,"bricktiledecor2top"))
+            if tileid == 3:
+                tiletype = "bulletground"
             if type(tileid)==type(int(1)):
                 for key in placedict:
                     contents = placedict[key]
@@ -199,6 +201,7 @@ SURFACES["gatetile1"].convert()
 SURFACES["gatetile2"] = pygame.transform.rotate(pygame.image.load("sprites/gatetile.png"),90)
 SURFACES["gatetile2"].convert()
 SURFACES["door"] = pygame.image.load("sprites/door.png")
+SURFACES["bulletground"] = pygame.image.load("sprites/bulletground.png").convert()
 
 
 """
