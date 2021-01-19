@@ -8,6 +8,7 @@ import items
 from text import *
 
 UNLOCKFILE = "unlocks.dat"
+LOCKIMAGE = pygame.image.load("sprites/locked.png")
 
 class Unlocks:
     def __init__(self):
@@ -48,6 +49,8 @@ class Unlocks:
     def drawunlocks(self,screen,mousepos):
         ypointer = 82
         ychange = 12
+
+        popupblit = []
         for unlock in self.unlocks:
             string = unlock["description"]
             if type(unlock["progress"]) == type(1):
@@ -64,4 +67,32 @@ class Unlocks:
             textrect.y = ypointer
             screen.blit(text,textrect)
             ypointer += ychange
+
+            if textrect.collidepoint(mousepos):
+                if unlock["finished"]:
+                    itemname = items.Item(unlock["item"]).name
+                    itemimage = items.SURFACES[str(unlock["item"])]
+                else:
+                    itemname = "locked"
+                    itemimage = LOCKIMAGE
+                itemrect = itemimage.get_rect()
+                itemrect.topleft = mousepos
+            
+                nameimage = generatetext(itemname,None,"small",(0,0),colour)
+                namerect = nameimage.get_rect()
+                namerect.center = itemrect.center
+                namerect.top = itemrect.bottom
+                
+                back = pygame.Surface(nameimage.get_size())
+                back.blit(nameimage,(0,0))
+                nameimage = back
+                
+                back = pygame.Surface(itemimage.get_size())
+                back.blit(itemimage,(0,0))
+                itemimage = back
+                
+                popupblit = [[nameimage,namerect],[itemimage,itemrect]]
+
+        for image in popupblit:
+            screen.blit(image[0],image[1])
     

@@ -44,6 +44,7 @@ class Items:
             for item in self.itemlist[room]:
                 item.update(screen,player,entities)
                 if item.collected and item.finishanimation and item not in self.collected:
+                    possibleitems.remove(item.id)
                     self.collected.append(item)
                     self.changestats = True
     def add(self,room,pos=(r.TILESIZE,r.TILESIZE),pool=None):

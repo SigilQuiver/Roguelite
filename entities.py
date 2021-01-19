@@ -585,7 +585,7 @@ class Enemy(Entity):
     def ondeath(self,unlocks):
         if self.id == 1:
             unlocks.progressachievement(0)
-        unlocks.progressachievement(2)
+        unlocks.progressachievement(1)
         self.delete = True
     def update(self,tilelist,player,screen,entities,unlocks):
         if self.hp <=0:
