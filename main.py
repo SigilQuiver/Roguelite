@@ -217,7 +217,7 @@ class Roomtransition:
             self.currentpos = vector(0,0)
             self.nextpos = self.unitmove
             entities.clearenemies()
-            entities.clearprojectiles()
+            entities.clearprojectiles(entities)
             
             self.updatescreen(player,surface,roomdict,currentroom,unlocks)
             self.betweenroomanimate = True
@@ -504,6 +504,8 @@ itemui = i.Itemview()
 
 roomdict,specialdict,items = treestorooms(tree,items,True)
 
+coins = i.Coins()
+
 keys = []
 
 clock = pygame.time.Clock()
@@ -629,6 +631,7 @@ while True:
             unlocks.progressachievement(3)
         if roomdict[currentroom].completed:
             previousroom = currentroom
+            e.entities.clearprojectiles(e.entities)
         if not currentroom in exploredlist:
             exploredlist.append(currentroom)
             
@@ -662,6 +665,7 @@ while True:
         currentroom = transition.updateanimate(gamesurf,roomdict,currentroom)
         
         #get new map, reset explored list and set current room to spawn
+        """
         if 32 in keys:
             tree = m.generatetree(12)
             currentroom = "A"
@@ -681,7 +685,7 @@ while True:
             
         if K_c in keys:
             e.entities.clearenemies()
-
+        """
         
         """
         if K_p in keys:
@@ -693,10 +697,12 @@ while True:
         """
 
         #debug text
+        """
         quick.print("space:reset")
         quick.print("e:teleport to mouse")
         quick.print("q:upwards velocity")
-        quick.print("c:clear enemies")   
+        quick.print("c:clear enemies")
+        """
         """
         shooting = False
         if pygame.mouse.get_pressed()[0]:
@@ -717,13 +723,14 @@ while True:
                         doortiles[num+num2].update(gamesurf)
             
             nextstage = roomdict[currentroom].update(gamesurf,player,keys,roomdict[currentroom].completed,e.entities)
-            
-            e.entities.update(tiles,player,gamesurf,unlocks)
-            items.update(gamesurf,player,e.entities,currentroom)
+            coins.update(gamesurf,player,e.entities,inencounter)
+            e.entities.update(tiles,player,gamesurf,unlocks,coins)
+            items.update(gamesurf,player,e.entities,currentroom,specialdict)
             if items.changestats:
                 player.changestats(items)
             player.update(gun.direction,tiles,gamesurf,keys)
             gun.update(e.entities,gamesurf,player,mousepos)
+            
 
         scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
         tempscale = int(scale)
@@ -811,7 +818,6 @@ while True:
                     pygame.quit()
                     sys.exit()
                 if key == "newgame":
-                    print(menu.getoptions()["difficulty"])
                     difficulty = menu.getoptions()["difficulty"]
                     stages = ["stage1","stage1"]
                     items.reset()

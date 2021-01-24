@@ -38,13 +38,13 @@ class Items:
         self.itemlist = {}
         self.itemtype = type(Item())
         self.collected = []
-    def update(self,screen,player,entities,room):
+    def update(self,screen,player,entities,room,specialrooms):
         self.changestats = False
         if room in self.itemlist.keys():
             for item in self.itemlist[room]:
                 item.update(screen,player,entities)
                 if item.collected and item.finishanimation and item not in self.collected:
-                    possibleitems.remove(item.id)
+                    self.possibleitems.remove(item.id)
                     self.collected.append(item)
                     self.changestats = True
     def add(self,room,pos=(r.TILESIZE,r.TILESIZE),pool=None):
@@ -238,4 +238,83 @@ class Item:
                 self.upanimation = True
                 self.pos = vector(self.pos)
                 self.uppos = vector(self.pos)+vector(self.uppos)
+
+spritesheet = pygame.image.load("sprites/coins.png")
+coinnum = 0
+COINIMAGE = spritesheettolist(spritesheet,2,True)[coinnum]
+COINIMAGE_NOOUT = spritesheettolist(spritesheet,2,True,False)[coinnum]
+
+class Coins():
+    def __init__(self):
+        self.money = 0
+        self.coinlist = []
+    def addcoins(self,value,pos):
+        coinvalue = 5
+        evennum = int(value//5)
+        oddvalue = value%5
+        for _ in range(evennum):
+            self.coinlist.append(Coin(pos,coinvalue))
+        if oddvalue != 0:
+            self.coinlist.append(Coin(pos,oddvalue))
+    def update(self,screen,player,entities,inencounter):
+        toremove = []
         
+        for coin in self.coinlist:
+            coin.update(screen,player,entities,inencounter)
+            if coin.collected:
+                self.money += coin.value
+            if coin.delete:
+                toremove.append(coin)
+                
+        for coin in toremove:
+            self.coinlist.remove(coin)
+    
+class Coin():
+    def __init__(self,pos,value):
+        self.slip = uniform(0.04,0.05)
+        self.pos = vector(pos)
+        self.previousposlist = []
+        randomangle = randint(0,360)
+        inplace = vector(0,randint(0,10))
+        inplace.rotate_ip(randomangle)
+        self.spawnpos = self.pos+inplace
+        for _ in range(4):
+            self.previousposlist.append(self.pos)
+        self.collected = False
+        self.delete = False
+        self.value = value
+        self.cango = False
+    def update(self,screen,player,entities,inencounter):
+        if not inencounter and self.cango:
+            location = player.pos
+            self.pos = vector(self.pos).slerp(location,self.slip)
+        else:
+            location = self.spawnpos
+            self.pos = vector(self.pos).slerp(location,0.5)
+        
+            
+        
+        
+        self.previousposlist.append(self.pos)
+        self.previousposlist.pop(0)
+
+        pygame.draw.lines(screen,(90,90,90),False,self.previousposlist,2)
+        imagerect = COINIMAGE_NOOUT.get_rect()
+        imagerect.center = self.pos
+        screen.blit(COINIMAGE_NOOUT,imagerect)
+
+        glitterprob = uniform(0,1)
+        if glitterprob < 0.01:
+            randomangle = randint(0,360)
+            inplace = vector(0,randint(0,3))
+            inplace.rotate_ip(randomangle)
+            glitterpos = self.pos+inplace
+            for angle in range(0,360+1,90):
+                entities.add(e.Dust(glitterpos,3,(0,0),angle,randint(1,2)))
+        
+        if player.rect.collidepoint(self.pos):
+            self.delete = True
+            self.collected = True
+            
+        if inttuple(self.pos) == inttuple(self.spawnpos):
+            self.cango = True

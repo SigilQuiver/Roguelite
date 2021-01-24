@@ -100,7 +100,7 @@ class Player:
         self.hitstaken = 0
     def initstats(self,first = False):
         self.shotspeed = 3
-        self.shootspeed = 20
+        self.shootspeed = 50
         self.shoottimer = Timer(self.shootspeed)
         self.maxhp = 8
         self.speed = 2

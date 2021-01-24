@@ -71,9 +71,9 @@ class Entities:
             except:
                 dust.delete = False
                 
-    def updateenemies(self,tilelist,player,screen,unlocks):
+    def updateenemies(self,tilelist,player,screen,unlocks,coins = None):
         for enemy in self.enemylist:
-            enemy.update(tilelist,player,screen,self,unlocks)
+            enemy.update(tilelist,player,screen,self,unlocks,coins)
             
         for enemy in self.enemylist:
             try:
@@ -104,12 +104,23 @@ class Entities:
             return True
         return False
 
-    def update(self,tilelist,player,screen,unlocks):
-        self.updateenemies(tilelist,player,screen,unlocks)
+    def update(self,tilelist,player,screen,unlocks,coins=None):
+        self.updateenemies(tilelist,player,screen,unlocks,coins)
         self.updateprojectiles(tilelist,player,screen)
         self.updatedusts(screen)
-    def clearprojectiles(self):
-        self.projectilelist = []
+    def clearprojectiles(self,entities):
+        for _ in range(5):
+            removelist = []
+            for projectile in self.projectilelist:
+                if not projectile.friendly:
+                    projectile.ondeath(entities)
+                    removelist.append(projectile)
+            for projectile in removelist:
+                try:
+                    self.projectilelist.remove(projectile)
+                except:
+                    pass
+        
     def clearenemies(self):
         self.enemylist = []
     def cleardust(self):
@@ -150,6 +161,7 @@ class Entity:
 PROJECTILESURFACES = []
 PROJECTILESURFACES.append([pygame.image.load("sprites/bullet.png")])
 PROJECTILESURFACES.append(spritesheettolist(pygame.image.load("sprites/bubble.png"),4,False,False))
+PROJECTILESURFACES.append([pygame.image.load("sprites/clumsyproj.png")])
 
 class Projectile(Entity):
     def __init__(self,pos=(0,0),damage=0,ident=1,velocity=(0,0),rotation=0,speed=0,spectral=False,timetodie=None):
@@ -186,7 +198,7 @@ class Projectile(Entity):
         
         for enemy in enemylist:
             self.pierce -=1
-            enemy.hp -= self.damage
+            enemy.onhurt(self.damage)
             if self.pierce == 0:
                 self.ondeath(entities)
             for x in range(randint(3,5)):
@@ -277,14 +289,14 @@ class Dust(Entity):
         if self.id == 1:
             self.visible = False
             self.colour = (192,192,192)
-            self.linesize = 1
-            self.slip = 0.1
+            self.linesize = 2
+            self.slip = 0.05
             self.deletetimer = Timer(randint(6,12))
             
-            self.gravity = 0.1
+            self.gravity = 0
             
             self.velocity = vector(self.velocity)
-            self.traillength = randint(2,3)
+            self.traillength = 5
             self.previouslist = []
             for _ in range(self.traillength):
                 self.previouslist.append(self.pos)
@@ -316,11 +328,13 @@ class Dust(Entity):
     def normalupdate(self,screen):
         if self.id == 1:
             #self.gravity = max(self.gravity+0.02,0.2)
-            
-            self.velocity  = self.velocity.lerp(vector(0,2),0.1)
+            self.speed = lerp(self.speed,0,0.9)
+            #self.velocity  = vector(0,2).lerp(vector(0,2),0.1)
             self.velocity = vector(self.speed,0)
             self.velocity.rotate_ip(self.rotation)
-            self.pos = vector(self.pos)+self.velocity
+            self.pos = vector(self.pos)+self.velocity+vector(0,self.gravity)
+            self.gravity = min(self.gravity+(GRAVITY/5),MAXY)
+            
             
             
             self.previouslist.append(self.pos)
@@ -329,10 +343,14 @@ class Dust(Entity):
             previouspos = self.previouslist[0]
             #pygame.draw.line(screen,self.colour,previouspos,self.pos,self.linesize)
             pygame.draw.lines(screen,self.colour,False,self.previouslist,self.linesize)
-
+            
             if self.deletetimer.update():
-                self.delete = True
-                
+                self.colour = (90,90,90)
+                self.deletetimer.reset()
+                self.traillength -= 2
+                self.linesize -=1
+                if self.linesize == 0:
+                    self.delete = True
         if self.id == 2 or self.id == 3:
 
             self.velocity = vector(self.speed,0)
@@ -368,6 +386,8 @@ ENEMYSURFACES = []
 ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/froge.png"),2))
 ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/mushroom.png"),4,True))
 ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/mushroomboss.png"),4))
+ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/nosy.png"),1))
+ENEMYSURFACES.append(spritesheettolist(pygame.image.load("sprites/clumsy.png"),2))
 
 class Enemy(Entity):
     def __init__(self,pos=(90,90),ident=1,velocity=(0,0),rotation=0,speed=0,difficulty="normal",stagenum = 1):
@@ -406,7 +426,7 @@ class Enemy(Entity):
             self.image = pygame.Surface((30,22))
             self.image.fill((100,100,100))
             self.jumping = False
-            self.jumptimer = Timer(60*(2-self.multiplier))
+            self.jumptimer = Timer(60/self.multiplier)
             self.direction = ["left","right"]
             if randint(0,1) == 1:
                 self.direction.reverse()
@@ -418,7 +438,7 @@ class Enemy(Entity):
             self.velocity[1] = -1
             self.image = pygame.Surface((22,22))
             self.image.fill((100,100,100))
-            self.shoottimer = Timer(120*(2-self.multiplier))
+            self.shoottimer = Timer(120/self.multiplier)
             self.direction = ["left","right"]
             if randint(0,1) == 1:
                 self.direction.reverse()
@@ -433,16 +453,71 @@ class Enemy(Entity):
             self.name = "mushroomboss"
             self.state = "idle"
             self.states = ["idle","attack1","attack2","attack3"]
-            self.betweenattackdelay = Timer(200*(2-self.multiplier))
-            self.attackdelay = Timer(70*(2-self.multiplier))
-            self.bubbledelay = Timer(50*(2-self.multiplier))
-            self.bubblespraytime = Timer(10*(2-self.multiplier))
+            self.betweenattackdelay = Timer(200/self.multiplier)
+            self.attackdelay = Timer(70/self.multiplier)
+            self.bubbledelay = Timer(50/self.multiplier)
+            self.bubblespraytime = Timer(10/self.multiplier)
             self.bubblespeed = self.multiplier
             self.attacking = False
             self.shotspeed = 2*self.multiplier
-            self.hp = 50*self.multiplier
+            self.hp = 50
+        if self.id == 4:
+            self.hp = 20
+            self.name = "nosy"
+            self.states = ["roam","dash","fall"]
+            self.state = "roam"
+            self.velocity = vector(0.1,0)
+            self.direction = ["left","right"]
+            self.speed = 1
+            if randint(0,1) == 1:
+                self.direction.reverse()
+            self.dashdelay = Timer(80/self.multiplier)
+            self.hptofall = (self.hp/2)*self.multiplier
+            self.ymargin = 10*self.multiplier
         self.hp *= self.multiplier
+        self.value = self.hp
     def normalupdate(self,screen,tilelist,entities,player):
+        if self.id == 4:
+            self.image = self.images[0]
+            if self.state == "fall":
+                self.velocity[1] = min(self.velocity[1]+GRAVITY,MAXY)
+                xdecay = 0.1
+                if self.velocity[0] < 0:
+                    self.velocity[0] = max(self.velocity[0]+xdecay,0)
+                elif self.velocity[0] > 0:
+                    self.velocity[0] = min(self.velocity[0]-xdecay,0)
+            if self.state == "roam":
+                if self.sides["left"] or self.sides["right"]:
+                    self.direction.reverse() 
+                if self.direction[0] == "left":
+                    self.velocity[0] = -self.speed
+                else:
+                    self.velocity[0] = self.speed
+                
+                if player.pos[1]> self.pos[1]-self.ymargin and player.pos[1]< self.pos[1]+self.ymargin:
+                    xdecay = 0.1
+                    if self.direction[0] == "right" and player.pos[0] > self.pos[0]:
+                        self.velocity[0] = 0
+                        if self.dashdelay.update():
+                            self.state = "dash"
+                    if self.direction[0] == "left" and player.pos[0] < self.pos[0]:
+                        self.velocity[0] = 0
+                        if self.dashdelay.update():
+                            self.state = "dash"
+                else:
+                    self.dashdelay.reset()
+            if self.state == "dash":
+                if self.sides["left"] or self.sides["right"]:
+                    self.dashdelay.reset()
+                    self.state = "roam"
+                if self.direction[0] == "left":
+                    self.velocity[0] = -self.speed*3
+                else:
+                    self.velocity[0] = self.speed*3
+                    
+            if self.direction[0] == "right":
+                self.image = pygame.transform.flip(self.image,True,False)
+            
         if self.id == 3:
             self.image = self.images[self.states.index(self.state)]
             if not self.attacking:
@@ -494,6 +569,8 @@ class Enemy(Entity):
                         
         if self.id == 1:
             self.velocity[1] = min(self.velocity[1]+GRAVITY,MAXY)
+            if self.sides ["top"]:
+                self.velocity[1] = 0
             if self.sides["left"] or self.sides["right"]:#self.velocity[0] == 0:
                 self.direction.reverse()
                 
@@ -536,7 +613,10 @@ class Enemy(Entity):
             self.pos = (90,90)
             
                 
-                
+    def onhurt(self,damage):
+        if self.id == 4 and self.hp<=self.hptofall:
+            self.state = "fall"
+        self.hp -= damage
     def playercollide(self,player,unlocks):
         
         if player.damage():
@@ -582,14 +662,16 @@ class Enemy(Entity):
                     self.sides["right"] = True
         
         self.pos = self.rect.center
-    def ondeath(self,unlocks):
+    def ondeath(self,unlocks,coins):
         if self.id == 1:
             unlocks.progressachievement(0)
+        if coins != None:
+            coins.addcoins(self.value,self.pos)
         unlocks.progressachievement(1)
         self.delete = True
-    def update(self,tilelist,player,screen,entities,unlocks):
+    def update(self,tilelist,player,screen,entities,unlocks,coins=None):
         if self.hp <=0:
-            self.ondeath(unlocks)
+            self.ondeath(unlocks,coins)
         self.normalupdate(screen,tilelist,entities,player)
         self.rect.center = self.pos
         if self.rect.colliderect(player.rect):
