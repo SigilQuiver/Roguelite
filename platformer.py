@@ -99,12 +99,12 @@ class Player:
 
         self.hitstaken = 0
     def initstats(self,first = False):
-        self.shotspeed = 3
-        self.shootspeed = 50
+        self.shotspeed = 4
+        self.shootspeed = 40
         self.shoottimer = Timer(self.shootspeed)
         self.maxhp = 8
         self.speed = 2
-        self.dmg = 1
+        self.dmg = 1.5
         if first:
             self.hp = self.maxhp
     def damage(self):

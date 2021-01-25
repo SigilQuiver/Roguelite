@@ -162,7 +162,7 @@ def treestorooms(tree,items,newrun=False,stage = "stage1"):
     return roomdict,specialdict,items
 
 #saves the state of the current map into a dat file
-def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty):
+def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty,coins):
     file = open(PICKLEFILE,"wb")
     rundict = {"tree":tree,
                "roomdict":roomdict,
@@ -173,7 +173,8 @@ def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stag
                "maxhp":player.maxhp,
                "hp":player.hp,
                "stages":stages,
-               "difficulty":difficulty}
+               "difficulty":difficulty,
+               "coins":coins}
     pickle.dump(rundict,file)
     file.close()
 
@@ -191,8 +192,9 @@ def getrun(player):
     player.hp = rundict["hp"]
     difficulty = rundict["difficulty"]
     stages = rundict["stages"]
+    coins = rundict["coins"]
     file.close()
-    return tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages        
+    return tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages,coins     
 
 #class that allows the smooth transition between rooms
 class Roomtransition:
@@ -593,7 +595,7 @@ while True:
         #if the player presses the exit button on the window, close the window and stop the script        
         if event.type == pygame.QUIT:
             if state == "game" or state == "gamemenu":
-                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty)
+                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                 unlocks.writesave()
             pygame.quit()
             sys.exit()
@@ -682,10 +684,10 @@ while True:
             player.velocity = [0,-20]
             
         
-            
-        if K_c in keys:
-            e.entities.clearenemies()
         """
+        if K_c in keys:
+            e.entities.clearenemies(unlocks,coins)
+        
         
         """
         if K_p in keys:
@@ -725,7 +727,7 @@ while True:
             nextstage = roomdict[currentroom].update(gamesurf,player,keys,roomdict[currentroom].completed,e.entities)
             coins.update(gamesurf,player,e.entities,inencounter)
             e.entities.update(tiles,player,gamesurf,unlocks,coins)
-            items.update(gamesurf,player,e.entities,currentroom,specialdict)
+            items.update(gamesurf,player,e.entities,currentroom,specialdict,coins,keys)
             if items.changestats:
                 player.changestats(items)
             player.update(gun.direction,tiles,gamesurf,keys)
@@ -749,6 +751,7 @@ while True:
         itemui.update(toblit,itemrect,items,mousepos2,False)
         minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
         heart.update(toblit,player.hp,player.maxhp,(1,1))
+        coins.counter(toblit,(0,22))
         #minimap.changealpha(player,mousepos)
 
         if nextstage:
@@ -787,13 +790,13 @@ while True:
                 if key == "menu":
                     menu.__init__(toblit)
                     state = "menu"
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                 if key == "save":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                 if key == "exit":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                     pygame.quit()
                     sys.exit()
@@ -838,7 +841,7 @@ while True:
                 if key == "savedgame":
                     items.reset()
                     gamemenu.reposition(toblit)
-                    tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages = getrun(player)
+                    tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages,coins = getrun(player)
                     player.changestats(items)
                     state = "game"
             if "see unlocks" in menu.currentstates:
