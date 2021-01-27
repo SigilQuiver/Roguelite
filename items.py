@@ -38,19 +38,25 @@ class Items:
         self.itemlist = {}
         self.itemtype = type(Item())
         self.collected = []
-    def update(self,screen,player,entities,room,specialrooms):
+    def update(self,screen,player,entities,room,specialrooms,coins,keys):
+        for key in specialrooms:
+            if specialrooms[key] == "shop":
+                shoproom = key
+        isshop = False
+        if shoproom == room:
+            isshop = True
         self.changestats = False
         if room in self.itemlist.keys():
             for item in self.itemlist[room]:
-                item.update(screen,player,entities)
+                item.update(screen,player,entities,isshop,coins,keys)
                 if item.collected and item.finishanimation and item not in self.collected:
-                    self.possibleitems.remove(item.id)
                     self.collected.append(item)
                     self.changestats = True
     def add(self,room,pos=(r.TILESIZE,r.TILESIZE),pool=None):
         if room not in self.itemlist.keys():
             self.itemlist[room] = []
-        self.itemlist[room].append(Item(choice(self.possibleitems),pos))
+        itemid = choice(self.possibleitems)
+        self.itemlist[room].append(Item(itemid,pos))
     def reset(self):
         self.itemlist = {}
     def resetcollection(self):
@@ -160,7 +166,7 @@ class Item:
         self.max_hp = 0
         self.actual_hp = 0
         self.givenhp = False
-        
+        self.cost = 180
         
         if self.id == 1:
             self.name = "sword"
@@ -216,7 +222,7 @@ class Item:
             
             
         
-    def update(self,screen,player,entities):
+    def update(self,screen,player,entities,isshop,coins,keys):
         if not self.finishanimation:
             image = SURFACES[str(self.id)]
             rect = image.get_rect()
@@ -234,10 +240,47 @@ class Item:
                         entities.add(e.Dust(vector(rect.center)+v1,3,(0,0),angle,randint(2,3)))
                         
             if rect.colliderect(player.rect) and not self.upanimation:
-                self.collected = True
-                self.upanimation = True
-                self.pos = vector(self.pos)
-                self.uppos = vector(self.pos)+vector(self.uppos)
+                if isshop:
+                    if rect.colliderect(player.rect):
+                        if (coins.money-self.cost) >= 0:
+                            text = "press R to get item for " +str(self.cost)+" money"
+                            if K_r in keys:
+                                self.collected = True
+                                self.upanimation = True
+                                self.pos = vector(self.pos)
+                                self.uppos = vector(self.pos)+vector(self.uppos)
+                                coins.money -= self.cost
+                        else:
+                            text = "insufficient funds!"
+                            
+                        textimage = t.generatetext(text,None,"small",(0,0),(192,192,192))
+                        textback = pygame.Surface(textimage.get_size())
+                        textback.fill((0,0,0))
+                        textback.blit(textimage,(0,0))
+                        textrect = textback.get_rect()
+                        textrect.centerx = rect.centerx
+                        textrect.bottom = player.rect.top+-5
+                        screen.blit(textback,textrect)
+                else:
+                    self.collected = True
+                    self.upanimation = True
+                    self.pos = vector(self.pos)
+                    self.uppos = vector(self.pos)+vector(self.uppos)
+            else:
+                pass
+            if isshop and not self.collected:
+                textimage = t.generatetext(str(self.cost)+"£",None,"small",(0,0),(192,192,192))
+                textback = pygame.Surface(textimage.get_size())
+                textback.fill((0,0,0))
+                textback.blit(textimage,(0,0))
+                textrect = textback.get_rect()
+                textrect.centerx = rect.centerx
+                textrect.top = rect.bottom
+                screen.blit(textback,textrect)
+                
+
+                
+
 
 spritesheet = pygame.image.load("sprites/coins.png")
 coinnum = 0
@@ -268,6 +311,14 @@ class Coins():
                 
         for coin in toremove:
             self.coinlist.remove(coin)
+    def counter(self,screen,pos):
+        textimage = t.generatetext("£"+str(self.money),None,"small",(0,0),(192,192,192))
+        textback = pygame.Surface(textimage.get_size())
+        textback.fill((0,0,0))
+        textback.blit(textimage,(0,0))
+        textrect = textback.get_rect()
+        textrect.topleft = pos
+        screen.blit(textback,textrect)
     
 class Coin():
     def __init__(self,pos,value):
@@ -284,6 +335,7 @@ class Coin():
         self.delete = False
         self.value = value
         self.cango = False
+        
     def update(self,screen,player,entities,inencounter):
         if not inencounter and self.cango:
             location = player.pos
@@ -309,8 +361,9 @@ class Coin():
             inplace = vector(0,randint(0,3))
             inplace.rotate_ip(randomangle)
             glitterpos = self.pos+inplace
-            for angle in range(0,360+1,90):
-                entities.add(e.Dust(glitterpos,3,(0,0),angle,randint(1,2)))
+            length = randint(1,2)
+            for angle in range(0,270+1,90):
+                entities.add(e.Dust(glitterpos,3,(0,0),angle,length))
         
         if player.rect.collidepoint(self.pos):
             self.delete = True
@@ -318,3 +371,5 @@ class Coin():
             
         if inttuple(self.pos) == inttuple(self.spawnpos):
             self.cango = True
+
+    
