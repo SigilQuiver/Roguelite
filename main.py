@@ -27,12 +27,13 @@ def processroom(room,directions,stage):
     #get the furthest grid coordinates at the edge of the screen
     last = r.TILENUM-1
     tiles = room
+    #change the tile appearance based on what stage the player is on (unused)
     tiletype = 1
     if stage == "stage2":
         tiletype = 2
     if stage == "stage3":
         tiletype = 3
-    #creates a border around the whole room
+    #creates a border of tiles around the whole room
     for x in range(0,last+1,last):
         for y in range(last+1):
             occurances = 0
@@ -76,6 +77,7 @@ def processroom(room,directions,stage):
             for x in range(-1,3):
                 coords = (median+x,last)
                 rejected.append((tiletype,(coords)))
+                
     #adds all tiles except the ones in the list "rejected" to a new list
     newroom = []
     for tile in tiles:
@@ -131,7 +133,7 @@ def treestorooms(tree,items,newrun=False,stage = "stage1"):
         else:
             #assign spawn room
             room = rooms[stage]["spawn"][randint(0,len(rooms[stage]["spawn"])-1)]
-        #room = room["tiles"]
+        
         connected = m.getconnected(tree,key)
         tiles = room["tiles"]
         tiles = processroom(tiles,connected,stage)
@@ -162,7 +164,7 @@ def treestorooms(tree,items,newrun=False,stage = "stage1"):
     return roomdict,specialdict,items
 
 #saves the state of the current map into a dat file
-def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty):
+def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty,coins):
     file = open(PICKLEFILE,"wb")
     rundict = {"tree":tree,
                "roomdict":roomdict,
@@ -173,7 +175,8 @@ def saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stag
                "maxhp":player.maxhp,
                "hp":player.hp,
                "stages":stages,
-               "difficulty":difficulty}
+               "difficulty":difficulty,
+               "coins":coins}
     pickle.dump(rundict,file)
     file.close()
 
@@ -191,8 +194,9 @@ def getrun(player):
     player.hp = rundict["hp"]
     difficulty = rundict["difficulty"]
     stages = rundict["stages"]
+    coins = rundict["coins"]
     file.close()
-    return tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages        
+    return tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages,coins     
 
 #class that allows the smooth transition between rooms
 class Roomtransition:
@@ -567,7 +571,10 @@ difficulty = "normal"
 
 haswon = False
 while True:
+    #reset the image the game is drawn onto
     gamesurf = pygame.Surface(GAMESIZE)
+
+    #gets the mouse positions based on the scale of the game or if it is not pixel perfect
     scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
     tempscale = int(scale)
     mousepos = (vector(pygame.mouse.get_pos())-vector(screenoffset))
@@ -588,15 +595,20 @@ while True:
                 initdisplay(menu,screen)
             elif state == "gamemenu" or state == "game":
                 initdisplay(gamemenu,screen)
-            #pixelperfect,screensurf,mousepos2,menu,scale = resizemenu(pixelperfect,screensurf,mousepos2,menu,scale)
             
         #if the player presses the exit button on the window, close the window and stop the script        
         if event.type == pygame.QUIT:
             if state == "game" or state == "gamemenu":
-                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty)
+<<<<<<< HEAD
+                saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
+=======
+                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
+>>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
                 unlocks.writesave()
             pygame.quit()
             sys.exit()
+
+        #store key presses in a list
         if event.type == pygame.KEYDOWN:
             keys.append(event.key)
         if event.type == pygame.KEYUP:
@@ -606,11 +618,11 @@ while True:
                 pass
     
     
-    screen.fill((0,0,0))
     clock.tick(80)
 
     
-    
+    #if escape is pressed ingame, open the menu, close the menu if it is pressed in the game menu
+    #close the game if it is pressed in the main menu
     if K_ESCAPE in keys:
         keys.remove(K_ESCAPE)
         menu.__init__(toblit)
@@ -623,18 +635,36 @@ while True:
         elif state == "game":
             state = "gamemenu"
 
+    #the starts the game over screen if the player dies
     if player.hp <= 0 and state == "game":
             state = "gameover"
-    
+            
+    #takes a screenshot when p is pressed, will cause an error if there is no output file
+    if K_p in keys:
+        now = datetime.now()
+        name = now.strftime("%d_%m_%Y_%H %M %S")
+        tooutput = screen
+        pygame.image.save(tooutput,"output/"+name+".png")
+        keys.remove(K_p)
+
     if state == "game":
+        #if the player reaches stage 2, unlock achievement
         if 3-len(stages) == 1:
             unlocks.progressachievement(3)
+
+        #once all enemies are defeated in a room
         if roomdict[currentroom].completed:
+            #keeps track of the previous room, so that if the player is in a room with enemies,
+            #but saves in that room, they will spawn in the previous room that has no enemies when entering the game again
             previousroom = currentroom
+            #removes all enemy projectiles in the room 
             e.entities.clearprojectiles(e.entities)
+            
+        #make the current room not greyed out on the map
         if not currentroom in exploredlist:
             exploredlist.append(currentroom)
-            
+
+        #if the room has not already been completed, and no enemies have been spawned, spawn enemies
         if not roomdict[currentroom].completed and not inencounter:
             doorprogress = 0
             inencounter = True
@@ -643,11 +673,12 @@ while True:
         else:
             inencounter = False
             
-            
+        #if there are no enemies in the room, mark it as completed
         if e.entities.enemylist == []:
             if not roomdict[currentroom].completed:
                 roomdict[currentroom].completed = True
             inencounter = False
+            #retract the doors
             if not inencounter and dooranimtimer.update():
                 dooranimtimer.reset()
                 doorprogress -= 1   
@@ -655,60 +686,30 @@ while True:
             if roomdict[currentroom].completed:
                 e.entities.clearenemies()
             inencounter = True
+            #close the doors
             if doorprogress != 4 and dooranimtimer.update():
                 dooranimtimer.reset()
                 doorprogress += 1
                 
-        
+        #checks if the player is moving to another roo
         directions = moveplayertransition(gamesurf,transition,player)
         transition.updatestart(exploredlist,e.entities,player,gamesurf,directions,roomdict,tree,currentroom,unlocks)
         currentroom = transition.updateanimate(gamesurf,roomdict,currentroom)
-        
-        #get new map, reset explored list and set current room to spawn
-        """
-        if 32 in keys:
-            tree = m.generatetree(12)
-            currentroom = "A"
-            exploredlist = []
-            roomdict, specialdict,items = treestorooms(tree,items)
-            keys.remove(32)
-            
-            
-        if K_e in keys:
-            player.pos = mousepos
-            
-            player.velocity = [0,0]
-        if K_q in keys:
-            player.velocity = [0,-20]
-            
-        
-            
-        if K_c in keys:
-            e.entities.clearenemies()
-        """
-        
-        """
-        if K_p in keys:
-            now = datetime.now()
-            name = now.strftime("%Y%_m%_d%_H%M%S")
-            tooutput = pygame.transform.scale(screen,inttuple(vector(gamesurf.get_size())*2))
-            pygame.image.save(tooutput,"output/"+name+".png")
-            keys.remove(K_p)
-        """
 
-        #debug text
+        #(debug use) kills all enemies in the room
+        if K_c in keys:
+            e.entities.clearenemies(unlocks,coins)
+        
+        
+        
+<<<<<<< HEAD
+=======
         """
-        quick.print("space:reset")
-        quick.print("e:teleport to mouse")
-        quick.print("q:upwards velocity")
-        quick.print("c:clear enemies")
-        """
-        """
-        shooting = False
-        if pygame.mouse.get_pressed()[0]:
-            if player.canshoot():
-                shooting = True
-        """
+        if K_c in keys:
+            e.entities.clearenemies(unlocks,coins)
+        
+>>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
+        
         nextstage = False
         #if there is no transition animation, update sprites normally
         if not transition.intransition():
@@ -725,7 +726,7 @@ while True:
             nextstage = roomdict[currentroom].update(gamesurf,player,keys,roomdict[currentroom].completed,e.entities)
             coins.update(gamesurf,player,e.entities,inencounter)
             e.entities.update(tiles,player,gamesurf,unlocks,coins)
-            items.update(gamesurf,player,e.entities,currentroom,specialdict)
+            items.update(gamesurf,player,e.entities,currentroom,specialdict,coins,keys)
             if items.changestats:
                 player.changestats(items)
             player.update(gun.direction,tiles,gamesurf,keys)
@@ -743,13 +744,18 @@ while True:
         
         toblit.blit(gamesurf,gamesurfrect)
         
-        #update minimap
+        
         itemrect = pygame.Rect((0,0),(22*4,22*8))
         itemrect.bottomleft = toblitrect.bottomleft
         itemui.update(toblit,itemrect,items,mousepos2,False)
         minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
         heart.update(toblit,player.hp,player.maxhp,(1,1))
+        coins.counter(toblit,(0,22))
+<<<<<<< HEAD
+        
+=======
         #minimap.changealpha(player,mousepos)
+>>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
 
         if nextstage:
             if not len(stages) == 0:
@@ -787,13 +793,13 @@ while True:
                 if key == "menu":
                     menu.__init__(toblit)
                     state = "menu"
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                 if key == "save":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                 if key == "exit":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                     pygame.quit()
                     sys.exit()
@@ -830,15 +836,17 @@ while True:
                     currentroom = "A"
                     exploredlist = []
                     roomdict,specialdict,items = treestorooms(tree,items,True)
+                    for _ in range(10):
+                        items.add("A",(88,88))
                     transition = Roomtransition()
                     player = platformer.Player()
                     gun = platformer.Gun(player.pos)
-                    
+                    coins = i.Coins()
                     state = "game"
                 if key == "savedgame":
                     items.reset()
                     gamemenu.reposition(toblit)
-                    tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages = getrun(player)
+                    tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages,coins = getrun(player)
                     player.changestats(items)
                     state = "game"
             if "see unlocks" in menu.currentstates:
@@ -890,6 +898,8 @@ while True:
     
     optionsdict = menu.getoptions()
     
+    #reset the screen
+    screen.fill((0,0,0))
     
     scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
     tempscale = int(scale)

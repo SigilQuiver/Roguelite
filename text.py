@@ -3,6 +3,8 @@ from pygame.locals import *
 
 import time
 import sys
+
+
 from random import *
 
 from vector import *
@@ -251,7 +253,7 @@ for x in range(len(capitalalpha)):
     TILESIZEBIG[char] = actualdimensions
     
 alpha = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz.-,:+'!?0123456789()/_=\\[]*\"<>"
-SMALLALPHA = list(alpha)
+SMALLALPHA = list(alpha)+["£"]
 ypointer = 12
 dimensions = (6,7)
 small1 = ["!",".","i","'",":"]
@@ -276,7 +278,14 @@ for x in range(len(alpha)):
     charsurf.convert()
     TILEDICTSMALL[char] = charsurf
     TILESIZESMALL[char] = actualsize
-        
+
+spritesheet = pygame.image.load("sprites/coins.png")
+coinnum = 0
+COINIMAGE = spritesheettolist(spritesheet,2,True)[coinnum]
+COINIMAGE_NOOUT = spritesheettolist(spritesheet,2,True,False)[coinnum]
+TILEDICTSMALL["£"] = COINIMAGE_NOOUT
+TILESIZESMALL["£"] = COINIMAGE_NOOUT.get_size() 
+
 def blitall(screen):
     ypointer = 10
     xpointer = 1

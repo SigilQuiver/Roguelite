@@ -16,7 +16,7 @@ class Unlocks:
             {"description":"kill 20 frogs","progress":0,"condition":20,"finished":False,"item":4},
             {"description":"kill 100 enemies","progress":0,"condition":100,"finished":False,"item":7},
             {"description":"walk into enemies 20 times","progress":0,"condition":50,"finished":False,"item":5},
-            {"description":"reach stage 2","progress":False,"condition":True,"finished":False,"item":4},
+            {"description":"reach stage 2","progress":False,"condition":True,"finished":False,"item":8},
             ]
         self.getsave()
     def getsave(self):
@@ -78,7 +78,7 @@ class Unlocks:
                 itemrect = itemimage.get_rect()
                 itemrect.topleft = mousepos
             
-                nameimage = generatetext(itemname,None,"small",(0,0),colour)
+                nameimage = generatetext(itemname,None,"small",(0,0),(192,192,192))
                 namerect = nameimage.get_rect()
                 namerect.center = itemrect.center
                 namerect.top = itemrect.bottom

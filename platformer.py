@@ -99,21 +99,23 @@ class Player:
 
         self.hitstaken = 0
     def initstats(self,first = False):
-        self.shotspeed = 3
-        self.shootspeed = 50
+        self.shotspeed = 4
+        self.shootspeed = 40
         self.shoottimer = Timer(self.shootspeed)
         self.maxhp = 8
         self.speed = 2
-        self.dmg = 1
+        self.dmg = 1.5
         if first:
             self.hp = self.maxhp
     def damage(self):
+        beenhit = False
         if not self.invunerable:
             self.hitstaken += 1
             self.hp -=1
             self.invunerable = True
             self.invuntimer.reset()
-        return not self.invunerable
+            beenhit = True
+        return beenhit
     def updateinvun(self):
         if self.invunerable:
             if self.invuntimer.update():
