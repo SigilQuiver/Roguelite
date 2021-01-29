@@ -599,11 +599,7 @@ while True:
         #if the player presses the exit button on the window, close the window and stop the script        
         if event.type == pygame.QUIT:
             if state == "game" or state == "gamemenu":
-<<<<<<< HEAD
                 saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
-=======
-                saverun(tree,roomdict,currentroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
->>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
                 unlocks.writesave()
             pygame.quit()
             sys.exit()
@@ -702,13 +698,6 @@ while True:
         
         
         
-<<<<<<< HEAD
-=======
-        """
-        if K_c in keys:
-            e.entities.clearenemies(unlocks,coins)
-        
->>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
         
         nextstage = False
         #if there is no transition animation, update sprites normally
@@ -751,11 +740,7 @@ while True:
         minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
         heart.update(toblit,player.hp,player.maxhp,(1,1))
         coins.counter(toblit,(0,22))
-<<<<<<< HEAD
         
-=======
-        #minimap.changealpha(player,mousepos)
->>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
 
         if nextstage:
             if not len(stages) == 0:

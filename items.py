@@ -313,11 +313,7 @@ class Coins():
         for coin in toremove:
             self.coinlist.remove(coin)
     def counter(self,screen,pos):
-<<<<<<< HEAD
         textimage = t.generatetext("£"+str(int(self.money)),None,"small",(0,0),(192,192,192))
-=======
-        textimage = t.generatetext("£"+str(self.money),None,"small",(0,0),(192,192,192))
->>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
         textback = pygame.Surface(textimage.get_size())
         textback.fill((0,0,0))
         textback.blit(textimage,(0,0))
@@ -377,7 +373,3 @@ class Coin():
         if inttuple(self.pos) == inttuple(self.spawnpos):
             self.cango = True
 
-<<<<<<< HEAD
-=======
-    
->>>>>>> b9d4e7ada4e385a3a4e324fdd7aa9aaab00deb55
