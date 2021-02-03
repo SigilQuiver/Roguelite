@@ -643,6 +643,7 @@ while True:
         pygame.image.save(tooutput,"output/"+name+".png")
         keys.remove(K_p)
 
+    #main loop for the actual game
     if state == "game":
         #if the player reaches stage 2, unlock achievement
         if 3-len(stages) == 1:
@@ -687,7 +688,7 @@ while True:
                 dooranimtimer.reset()
                 doorprogress += 1
                 
-        #checks if the player is moving to another roo
+        #checks if the player is moving to another room
         directions = moveplayertransition(gamesurf,transition,player)
         transition.updatestart(exploredlist,e.entities,player,gamesurf,directions,roomdict,tree,currentroom,unlocks)
         currentroom = transition.updateanimate(gamesurf,roomdict,currentroom)
@@ -702,48 +703,69 @@ while True:
         nextstage = False
         #if there is no transition animation, update sprites normally
         if not transition.intransition():
-            
+            #get the tiles to be collided with
+            #bordertiles is an invisible set of tiles used to prevent the player get out of the room other than through the entry spaces provided
             tiles = roomdict[currentroom].tilelist+bordertiles
+            #add the door tiles to the collision if they are there
             if inencounter:
                 tiles += doortiles
+                
+            #draw the decor(non collidable tiles)
             roomdict[currentroom].updatedecor(gamesurf)
+            #draw the door tiles to the screen
             if doorprogress != 0:
                 for num in range(0,((doorprogress-1)*4)+1,4):
                     for num2 in range(4):
                         doortiles[num+num2].update(gamesurf)
-            
+
+            #draw the current rooms tiles(and doors if they are there)
+            #this method returns true when the player accepts a prompt at a door
             nextstage = roomdict[currentroom].update(gamesurf,player,keys,roomdict[currentroom].completed,e.entities)
+            #update currency
             coins.update(gamesurf,player,e.entities,inencounter)
+            #update enemies
             e.entities.update(tiles,player,gamesurf,unlocks,coins)
+            #update items
             items.update(gamesurf,player,e.entities,currentroom,specialdict,coins,keys)
+            #if a new item has been collected, change the player's stats
             if items.changestats:
                 player.changestats(items)
+            #update the player with the tiles to be collided with
             player.update(gun.direction,tiles,gamesurf,keys)
+            #update the player's gun
             gun.update(e.entities,gamesurf,player,mousepos)
             
 
+        #work out the pixel perfect scale of the current screen size
         scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
         tempscale = int(scale)
         newdims = inttuple(vector(toblit.get_size())*tempscale)
         gamesurfrect = gamesurf.get_rect()
         gamesurfrect.center = toblitrect.center
         gameoffset = gamesurfrect.topleft
-
         
         
+        #gamesurf is an image where only gameplay is drawn
+        #toblit is upscaled when it is being drawn to the main screen, it is where everything has to eventually be blitted to
+        #draw gamesurf onto toblit
         toblit.blit(gamesurf,gamesurfrect)
         
-        
+        #draw item ui
         itemrect = pygame.Rect((0,0),(22*4,22*8))
         itemrect.bottomleft = toblitrect.bottomleft
         itemui.update(toblit,itemrect,items,mousepos2,False)
+        #draw minimap
         minimap.update(specialdict,keys,toblit,tree,exploredlist,currentroom)
+        #draw heart meter
         heart.update(toblit,player.hp,player.maxhp,(1,1))
+        #draw the number of coins the player has
         coins.counter(toblit,(0,22))
         
-
+        #move to the next stage, if the player was on stage 3, win the game
         if nextstage:
+            
             if not len(stages) == 0:
+                #reset the map, but not the player's items
                 items.reset()
                 tree = m.generatetree(ROOMNUM)
                 currentroom = "A"
@@ -760,22 +782,29 @@ while True:
                 haswon = True
                 state = "gameover"
         
-
+    #loop for the in-game menu
     elif state == "gamemenu":
+        #puts PAUSED at the top of the screen
         titletext = generatetext("paused",None,"big",(0,0),(192,192,192))
         titlerect = titletext.get_rect()
         titlerect.center = (toblit.get_width()//2,10)
         toblit.blit(titletext,titlerect)
+        
+        #update the buttons for the game menu
         gamemenu.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
         buttons = gamemenu.getbuttonresults()
+        #the "if key == text:" is called if a certain button with that text is pressed
         for key in buttons:
             result = buttons[key]
             if result:
                 if key == "return":
+                    #unpause
                     state = "game"
                 if key == "apply":
+                    #apply and save the player's settings
                     initdisplay(gamemenu,screen)
                 if key == "menu":
+                    #go back to the main menu
                     menu.__init__(toblit)
                     state = "menu"
                     saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
@@ -788,8 +817,12 @@ while True:
                     unlocks.writesave()
                     pygame.quit()
                     sys.exit()
+        #if in see unlocks part of the menu
         if "see unlocks" in gamemenu.currentstates:
+            #draw the unlocks ui
             unlocks.drawunlocks(toblit,mousepos2)
+            
+    #loop for the starting menu
     elif state == "menu":
         titletext = generatetext("generic platformer roguelite",None,"big",(0,0),(192,192,192))
         titlerect = titletext.get_rect()
@@ -803,45 +836,46 @@ while True:
             
             if result:
                 if key == "apply":
+                    #apply and save the player's settings
                     initdisplay(menu,screen)
                     menu.reposition(toblit)
                 if key == "exit":
                     pygame.quit()
                     sys.exit()
                 if key == "newgame":
+                    #reset the map and the player's items and start the game up
                     difficulty = menu.getoptions()["difficulty"]
                     stages = ["stage1","stage1"]
                     items.reset()
                     items.resetcollection()
-                    """
-                    for x in range(22,22*10,22):
-                        items.add("A",(x,22*4))
-                    """
                     tree = m.generatetree(ROOMNUM)
                     currentroom = "A"
                     exploredlist = []
                     roomdict,specialdict,items = treestorooms(tree,items,True)
-                    for _ in range(10):
-                        items.add("A",(88,88))
                     transition = Roomtransition()
                     player = platformer.Player()
                     gun = platformer.Gun(player.pos)
                     coins = i.Coins()
                     state = "game"
                 if key == "savedgame":
+                    #load the map and player's items from the save file.
                     items.reset()
                     gamemenu.reposition(toblit)
                     tree,roomdict,currentroom,exploredlist,specialdict,items,difficulty,stages,coins = getrun(player)
                     player.changestats(items)
                     state = "game"
+            #if in see unlocks part of the menu
             if "see unlocks" in menu.currentstates:
+                #draw the unlocks ui
                 unlocks.drawunlocks(toblit,mousepos2)
+    #if the player wins/loses
     elif state == "gameover":
+        #change title if the player won/lost
         if haswon:
             titletext = generatetext("you won",None,"big",(0,0),(192,192,192))
             msg = "well done!!!"
         else:
-            titletext = generatetext("game over",None,"big",(0,0),(192,192,192))
+            titletext = generatetext("you lost",None,"big",(0,0),(192,192,192))
             msg = "better luck next time!"
         ypointer = 10
         titlerect = titletext.get_rect()
@@ -849,6 +883,8 @@ while True:
         toblit.blit(titletext,titlerect)
         
         ypointer += 20
+        #draws text to the screen using a list, going down on the center of the screen
+        #the text is just a couple of stats from the playthrough
         stats = [
             msg,
             " ",
@@ -864,6 +900,7 @@ while True:
             ypointer += 9
         gameover.update(toblit,mousepos2,inttuple(vector(toblit.get_size())/2)[0])
         buttons = gameover.getbuttonresults()
+        #update buttons that return the player to the main menu
         for key in buttons:
             result = buttons[key]
             if result:
@@ -877,7 +914,8 @@ while True:
                     unlocks.writesave()
                     pygame.quit()
                     sys.exit()
-    
+
+    #print the performance of the game onscreen
     quick.print("fps:",int(clock.get_fps()))
     quick.update(toblit)
     
@@ -885,9 +923,11 @@ while True:
     
     #reset the screen
     screen.fill((0,0,0))
-    
+
+    #scale the image "toblit" to the actual display based on if the game is in pixelperfect mode or not
     scale = min(screen.get_width(),screen.get_height())/GAMESIZE[0]
     tempscale = int(scale)
+    #error messages if the size if the window is too small
     if scale < 1:
         string = "window is too small"
         if screen.get_width()//GAMESIZE[0] == 0:
@@ -916,6 +956,7 @@ while True:
     #update the screen
     pygame.display.flip()
 
+    #reset the display by filling it with the colour black
     
     dims = inttuple((vector(screen.get_size())/scale))
     toblitrect = pygame.Rect((0,0),dims)

@@ -13,8 +13,8 @@ def vector(*overflow):
     else:
         raise Exception ("not a valid vector(tuple or 2 float)")
 
-#short for linear interpolation, returns an amount between two values based off
-#a percentage
+#short for linear interpolation, returns an amount between two values based off a percentage
+#note - this function is slightly obsolete as the built in vector object for pygame already has this method
 def lerp(p1,p2,perc):
     return (perc * p1) + ((1-perc) * p2)
 

@@ -279,6 +279,8 @@ class Player:
         self.maxhp += statdict["max_hp"]
         self.hp = max(min(self.maxhp,statdict["actual_hp"]+self.hp),2)
         self.shoottimer = Timer(self.shootspeed)
+    def getrect():
+        return self.rect
         
 
 images1 = spritesheettolist(pygame.image.load("sprites/gunud.png"),2,False,False)
