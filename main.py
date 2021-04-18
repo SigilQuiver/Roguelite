@@ -850,6 +850,11 @@ while True:
                     items.resetcollection()
                     tree = m.generatetree(ROOMNUM)
                     currentroom = "A"
+                    """
+                    for thing in range(15):
+                        thing += 4
+                        items.add("A",(thing*r.TILESIZE,r.TILESIZE*4))
+                    """
                     exploredlist = []
                     roomdict,specialdict,items = treestorooms(tree,items,True)
                     transition = Roomtransition()
@@ -907,10 +912,10 @@ while True:
                 if key == "menu":
                     menu.__init__(toblit)
                     state = "menu"
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                 if key == "exit":
-                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty)
+                    saverun(tree,roomdict,previousroom,exploredlist,specialdict,items,player,stages,difficulty,coins)
                     unlocks.writesave()
                     pygame.quit()
                     sys.exit()
